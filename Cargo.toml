@@ -1,0 +1,43 @@
+[package]
+name = "lsp-bridge"
+version = "0.1.0"
+edition = "2021"
+description = "Universal bridge for exporting IDE diagnostics to AI assistants"
+license = "MIT"
+repository = "https://github.com/your-org/lsp-bridge"
+keywords = ["lsp", "diagnostics", "ide", "ai", "claude"]
+categories = ["command-line-utilities", "development-tools"]
+
+[dependencies]
+# CLI
+clap = { version = "4.4", features = ["derive"] }
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+toml = "0.8"
+# Async runtime
+tokio = { version = "1.0", features = ["full"] }
+# Error handling
+anyhow = "1.0"
+thiserror = "1.0"
+# Logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+# File operations
+glob = "0.3"
+# Time handling
+chrono = { version = "0.4", features = ["serde"] }
+# UUID generation
+uuid = { version = "1.0", features = ["v4", "serde"] }
+# Async traits
+async-trait = "0.1"
+# Regular expressions
+regex = "1.0"
+# Radix formatting
+radix_fmt = "1.0"
+# TTY detection
+atty = "0.2"
+
+[dev-dependencies]
+tempfile = "3.0"
+pretty_assertions = "1.0"
