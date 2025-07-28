@@ -1,7 +1,7 @@
-use crate::core::{DiagnosticsCache, DiagnosticSnapshot, Diagnostic, DiagnosticFilter};
+use crate::core::{Diagnostic, DiagnosticFilter, DiagnosticSnapshot, DiagnosticsCache};
 use anyhow::Result;
 use async_trait::async_trait;
-use chrono::{DateTime, Utc, Duration};
+use chrono::{DateTime, Duration, Utc};
 use std::collections::HashMap;
 use uuid::Uuid;
 
@@ -51,18 +51,23 @@ impl MemoryCache {
             entries.sort_by(|a, b| a.1.last_accessed.cmp(&b.1.last_accessed));
 
             let to_remove = entries.len() - self.max_snapshots;
-            let ids_to_remove: Vec<Uuid> = entries.into_iter()
+            let ids_to_remove: Vec<Uuid> = entries
+                .into_iter()
                 .take(to_remove)
                 .map(|(id, _)| *id)
                 .collect();
-            
+
             for id in ids_to_remove {
                 self.snapshots.remove(&id);
             }
         }
     }
 
-    fn apply_filter(&self, diagnostics: Vec<Diagnostic>, filter: &DiagnosticFilter) -> Vec<Diagnostic> {
+    fn apply_filter(
+        &self,
+        diagnostics: Vec<Diagnostic>,
+        filter: &DiagnosticFilter,
+    ) -> Vec<Diagnostic> {
         let mut filtered = diagnostics;
 
         // Filter by severities

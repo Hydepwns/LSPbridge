@@ -1,11 +1,5 @@
-mod core;
-mod capture;
-mod privacy;
-mod format;
-mod export;
-mod cli;
-
 use anyhow::Result;
+use lsp_bridge::cli;
 
 #[tokio::main]
 async fn main() -> Result<()> {

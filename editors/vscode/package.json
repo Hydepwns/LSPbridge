@@ -1,0 +1,156 @@
+{
+  "name": "lsp-bridge",
+  "displayName": "LSP Bridge",
+  "description": "Export IDE diagnostics to AI assistants with LSP Bridge",
+  "version": "0.1.0",
+  "publisher": "lsp-bridge",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other",
+    "Linters",
+    "Programming Languages"
+  ],
+  "keywords": [
+    "diagnostics",
+    "lsp",
+    "ai",
+    "claude",
+    "export"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "lsp-bridge.exportDiagnostics",
+        "title": "Export Diagnostics",
+        "category": "LSP Bridge"
+      },
+      {
+        "command": "lsp-bridge.exportToClipboard",
+        "title": "Export Diagnostics to Clipboard",
+        "category": "LSP Bridge"
+      },
+      {
+        "command": "lsp-bridge.watchDiagnostics",
+        "title": "Start Watching Diagnostics",
+        "category": "LSP Bridge"
+      },
+      {
+        "command": "lsp-bridge.stopWatching",
+        "title": "Stop Watching Diagnostics",
+        "category": "LSP Bridge"
+      },
+      {
+        "command": "lsp-bridge.showHistory",
+        "title": "Show Diagnostic History",
+        "category": "LSP Bridge"
+      },
+      {
+        "command": "lsp-bridge.applyQuickFixes",
+        "title": "Apply Quick Fixes",
+        "category": "LSP Bridge"
+      }
+    ],
+    "configuration": {
+      "title": "LSP Bridge",
+      "properties": {
+        "lsp-bridge.executablePath": {
+          "type": "string",
+          "default": "lsp-bridge",
+          "description": "Path to the LSP Bridge executable"
+        },
+        "lsp-bridge.exportFormat": {
+          "type": "string",
+          "enum": [
+            "json",
+            "markdown",
+            "claude"
+          ],
+          "default": "claude",
+          "description": "Default export format"
+        },
+        "lsp-bridge.privacyLevel": {
+          "type": "string",
+          "enum": [
+            "default",
+            "strict",
+            "permissive"
+          ],
+          "default": "default",
+          "description": "Privacy filtering level"
+        },
+        "lsp-bridge.includeContext": {
+          "type": "boolean",
+          "default": true,
+          "description": "Include code context around diagnostics"
+        },
+        "lsp-bridge.contextLines": {
+          "type": "number",
+          "default": 3,
+          "description": "Number of context lines to include"
+        },
+        "lsp-bridge.autoExportOnSave": {
+          "type": "boolean",
+          "default": false,
+          "description": "Automatically export diagnostics on file save"
+        },
+        "lsp-bridge.quickFixThreshold": {
+          "type": "number",
+          "default": 0.9,
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Minimum confidence threshold for auto-applying fixes"
+        }
+      }
+    },
+    "menus": {
+      "editor/context": [
+        {
+          "command": "lsp-bridge.exportDiagnostics",
+          "when": "editorHasSelection",
+          "group": "lsp-bridge"
+        }
+      ],
+      "view/title": [
+        {
+          "command": "lsp-bridge.exportDiagnostics",
+          "when": "view == workbench.panel.markers",
+          "group": "navigation"
+        }
+      ]
+    },
+    "keybindings": [
+      {
+        "command": "lsp-bridge.exportToClipboard",
+        "key": "ctrl+shift+e ctrl+shift+c",
+        "mac": "cmd+shift+e cmd+shift+c",
+        "when": "editorTextFocus"
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile && npm run lint",
+    "lint": "eslint src --ext ts",
+    "test": "node ./out/test/runTest.js"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.85.0",
+    "@types/node": "20.x",
+    "@typescript-eslint/eslint-plugin": "^6.15.0",
+    "@typescript-eslint/parser": "^6.15.0",
+    "eslint": "^8.56.0",
+    "typescript": "^5.3.3",
+    "@vscode/test-electron": "^2.3.8"
+  },
+  "dependencies": {
+    "child_process": "^1.0.2"
+  }
+}

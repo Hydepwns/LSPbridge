@@ -7,28 +7,31 @@ use async_trait::async_trait;
 pub trait DiagnosticsBridge {
     /// Initialize the bridge
     async fn initialize(&mut self) -> Result<()>;
-    
+
     /// Capture current diagnostics
     async fn capture_diagnostics(&self) -> Result<DiagnosticSnapshot>;
-    
+
     /// Subscribe to diagnostic updates
-    async fn subscribe_to_diagnostics(&self, callback: Box<dyn Fn(Vec<Diagnostic>) + Send + Sync>) -> Result<()>;
-    
+    async fn subscribe_to_diagnostics(
+        &self,
+        callback: Box<dyn Fn(Vec<Diagnostic>) + Send + Sync>,
+    ) -> Result<()>;
+
     /// Filter diagnostics
     async fn filter_diagnostics(&self, filter: DiagnosticFilter) -> Result<Vec<Diagnostic>>;
-    
+
     /// Check if a file should be excluded
     fn should_exclude_file(&self, file_path: &str) -> bool;
-    
+
     /// Sanitize a diagnostic for privacy
     fn sanitize_diagnostic(&self, diagnostic: Diagnostic) -> Diagnostic;
-    
+
     /// Start capturing diagnostics
     async fn start_capture(&mut self) -> Result<()>;
-    
+
     /// Stop capturing diagnostics
     async fn stop_capture(&mut self) -> Result<()>;
-    
+
     /// Dispose of resources
     async fn dispose(&mut self) -> Result<()>;
 }
@@ -38,19 +41,19 @@ pub trait DiagnosticsBridge {
 pub trait DiagnosticsCache {
     /// Store a snapshot
     async fn store(&mut self, snapshot: DiagnosticSnapshot) -> Result<()>;
-    
+
     /// Get diagnostics with optional filtering
     async fn get(&self, filter: Option<DiagnosticFilter>) -> Result<Vec<Diagnostic>>;
-    
+
     /// Get a specific snapshot by ID
     async fn get_snapshot(&self, id: &uuid::Uuid) -> Result<Option<DiagnosticSnapshot>>;
-    
+
     /// Get recent snapshots
     async fn get_snapshots(&self, limit: Option<usize>) -> Result<Vec<DiagnosticSnapshot>>;
-    
+
     /// Clear all cached data
     async fn clear(&mut self) -> Result<()>;
-    
+
     /// Clean up old entries
     async fn cleanup(&mut self) -> Result<()>;
 }
@@ -59,10 +62,10 @@ pub trait DiagnosticsCache {
 pub trait PrivacyFilter {
     /// Apply privacy filtering to diagnostics
     fn apply(&self, diagnostics: Vec<Diagnostic>) -> Result<Vec<Diagnostic>>;
-    
+
     /// Check if a diagnostic should be included
     fn should_include_diagnostic(&self, diagnostic: &Diagnostic) -> bool;
-    
+
     /// Sanitize a single diagnostic
     fn sanitize_diagnostic(&self, diagnostic: Diagnostic) -> Diagnostic;
 }
@@ -71,23 +74,42 @@ pub trait PrivacyFilter {
 #[async_trait]
 pub trait FormatConverter {
     /// Normalize raw diagnostics from any LSP
-    async fn normalize(&self, raw: RawDiagnostics) -> Result<Vec<Diagnostic>>;
-    
+    async fn normalize(
+        &self,
+        raw: RawDiagnostics,
+    ) -> Result<Vec<Diagnostic>, crate::core::errors::ParseError>;
+
     /// Convert diagnostics to unified format
-    fn convert_to_unified(&self, diagnostics: serde_json::Value, source: &str) -> Result<Vec<Diagnostic>>;
+    fn convert_to_unified(
+        &self,
+        diagnostics: serde_json::Value,
+        source: &str,
+    ) -> Result<Vec<Diagnostic>, crate::core::errors::ParseError>;
 }
 
 /// Trait for exporting diagnostics
 pub trait ExportService {
     /// Export to JSON format
-    fn export_to_json(&self, snapshot: &DiagnosticSnapshot, config: &ExportConfig) -> Result<String>;
-    
+    fn export_to_json(
+        &self,
+        snapshot: &DiagnosticSnapshot,
+        config: &ExportConfig,
+    ) -> Result<String, crate::core::errors::ExportError>;
+
     /// Export to Markdown format
-    fn export_to_markdown(&self, snapshot: &DiagnosticSnapshot, config: &ExportConfig) -> Result<String>;
-    
+    fn export_to_markdown(
+        &self,
+        snapshot: &DiagnosticSnapshot,
+        config: &ExportConfig,
+    ) -> Result<String, crate::core::errors::ExportError>;
+
     /// Export to Claude-optimized format
-    fn export_to_claude_optimized(&self, snapshot: &DiagnosticSnapshot, config: &ExportConfig) -> Result<String>;
-    
+    fn export_to_claude_optimized(
+        &self,
+        snapshot: &DiagnosticSnapshot,
+        config: &ExportConfig,
+    ) -> Result<String, crate::core::errors::ExportError>;
+
     /// Generate a summary of diagnostics
     fn generate_summary(&self, diagnostics: &[Diagnostic]) -> DiagnosticSummary;
 }
@@ -97,13 +119,16 @@ pub trait ExportService {
 pub trait DiagnosticsCaptureService {
     /// Process raw diagnostics
     async fn process_diagnostics(&mut self, raw: RawDiagnostics) -> Result<()>;
-    
+
     /// Subscribe to snapshot updates
-    async fn subscribe(&mut self, callback: Box<dyn Fn(DiagnosticSnapshot) + Send + Sync>) -> Result<()>;
-    
+    async fn subscribe(
+        &mut self,
+        callback: Box<dyn Fn(DiagnosticSnapshot) + Send + Sync>,
+    ) -> Result<()>;
+
     /// Get the current snapshot
     async fn get_current_snapshot(&self) -> Result<Option<DiagnosticSnapshot>>;
-    
+
     /// Get snapshot history
     async fn get_history(&self, limit: Option<usize>) -> Result<Vec<DiagnosticSnapshot>>;
 }
@@ -168,10 +193,7 @@ impl PrivacyPolicy {
 
     pub fn permissive() -> Self {
         Self {
-            exclude_patterns: vec![
-                "**/.git/**".to_string(),
-                "**/node_modules/**".to_string(),
-            ],
+            exclude_patterns: vec!["**/.git/**".to_string(), "**/node_modules/**".to_string()],
             sanitize_strings: false,
             sanitize_comments: false,
             include_only_errors: false,

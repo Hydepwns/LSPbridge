@@ -1,12 +1,17 @@
 [package]
 name = "lsp-bridge"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 description = "Universal bridge for exporting IDE diagnostics to AI assistants"
 license = "MIT"
 repository = "https://github.com/your-org/lsp-bridge"
 keywords = ["lsp", "diagnostics", "ide", "ai", "claude"]
 categories = ["command-line-utilities", "development-tools"]
+exclude = ["vscode-extension/"]
+
+[lib]
+name = "lsp_bridge"
+path = "src/lib.rs"
 
 [dependencies]
 # CLI
@@ -25,6 +30,7 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 # File operations
 glob = "0.3"
+walkdir = "2.4"
 # Time handling
 chrono = { version = "0.4", features = ["serde"] }
 # UUID generation
@@ -37,7 +43,51 @@ regex = "1.0"
 radix_fmt = "1.0"
 # TTY detection
 atty = "0.2"
+# Tree-sitter for semantic parsing
+tree-sitter = "0.20"
+tree-sitter-rust = "0.20"
+tree-sitter-typescript = "0.20"
+tree-sitter-python = "0.20"
+# Performance and parallel processing
+rayon = "1.8"
+# Hashing for file change detection
+sha2 = "0.10"
+# Serialization for persistent cache
+bincode = "1.3"
+# Database for persistent storage
+sled = "0.34"
+# SQLite for historical data storage
+rusqlite = { version = "0.31", features = ["bundled", "chrono"] }
+# Metrics collection
+prometheus = "0.13"
+# Terminal colors and interactive REPL
+colored = "2.0"
+crossterm = "0.27"
+# Random number generation for synthetic data
+rand = "0.8"
+# Platform-specific directory paths
+dirs = "5.0"
+# YAML parsing for pnpm workspace
+serde_yaml = "0.9"
+# Futures utilities for async processing
+futures = "0.3"
+# Macro utilities for builder patterns
+paste = "1.0"
 
 [dev-dependencies]
 tempfile = "3.0"
 pretty_assertions = "1.0"
+criterion = { version = "0.5", features = ["html_reports"] }
+
+[[test]]
+name = "integration"
+path = "tests/integration/mod.rs"
+
+[[bench]]
+name = "simple_bench"
+harness = false
+
+[[bench]]
+name = "lsp_bridge_benchmarks"
+harness = false
+

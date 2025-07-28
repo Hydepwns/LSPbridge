@@ -1,6 +1,7 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::path::PathBuf;
 use uuid::Uuid;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -133,6 +134,31 @@ impl Default for DiagnosticFilter {
             exclude_patterns: None,
             max_results: None,
             since: None,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DiagnosticResult {
+    pub diagnostics: HashMap<PathBuf, Vec<Diagnostic>>,
+    pub summary: DiagnosticSummary,
+    pub timestamp: DateTime<Utc>,
+}
+
+impl DiagnosticResult {
+    pub fn new() -> Self {
+        Self {
+            diagnostics: HashMap::new(),
+            summary: DiagnosticSummary {
+                total_diagnostics: 0,
+                error_count: 0,
+                warning_count: 0,
+                info_count: 0,
+                hint_count: 0,
+                file_count: 0,
+                source_breakdown: HashMap::new(),
+            },
+            timestamp: Utc::now(),
         }
     }
 }

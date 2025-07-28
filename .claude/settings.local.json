@@ -1,0 +1,39 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mkdir:*)",
+      "Bash(rm:*)",
+      "Bash(cargo init:*)",
+      "Bash(cargo check:*)",
+      "Bash(cargo run:*)",
+      "Bash(git init:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(ls:*)",
+      "Bash(npm install)",
+      "Bash(npm run compile:*)",
+      "Bash(npm install:*)",
+      "Bash(npm uninstall:*)",
+      "Bash(npm run lint)",
+      "Bash(cargo bench:*)",
+      "Bash(cargo test:*)",
+      "Bash(cargo:*)",
+      "Bash(RUST_BACKTRACE=1 cargo test --test integration dynamic_config_tests::test_config_validation -- --nocapture)",
+      "Bash(RUST_LOG=debug cargo test --test integration dynamic_config_tests::test_config_validation -- --nocapture)",
+      "Bash(RUST_BACKTRACE=1 cargo test test_config_edge_cases -- --nocapture)",
+      "Bash(RUST_BACKTRACE=1 cargo test test_incremental_processing -- --nocapture)",
+      "Bash(RUST_LOG=debug cargo test --test integration enhanced_processor::test_cache_operations -- --nocapture)",
+      "Bash(lua tests:*)",
+      "Bash(grep:*)",
+      "Bash(find:*)",
+      "Bash(RUST_LOG=off cargo test --package lsp-bridge --lib project::tests -- --exact)",
+      "Bash(RUST_LOG=debug cargo test --package lsp-bridge --lib project::structure_analyzer::tests::test_basic_structure_analysis -- --nocapture)",
+      "Bash(chmod:*)",
+      "Bash(mv:*)",
+      "Bash(RUST_BACKTRACE=1 cargo test --lib ai_training::synthetic::tests::test_gradient_dataset -- --nocapture)",
+      "Bash(RUST_BACKTRACE=1 cargo test test_semantic_context_extraction_rust -- --nocapture)",
+      "Bash(sed:*)"
+    ],
+    "deny": []
+  }
+}

@@ -1,5 +1,7 @@
 # LSP Bridge
 
+> **Project Name**: LSP Bridge | **CLI Tool**: `lsp-bridge` | **Package**: `lsp_bridge`
+
 Universal bridge for exporting IDE diagnostics to AI assistants.
 
 ## What We Built

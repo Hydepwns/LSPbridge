@@ -1,0 +1,17 @@
+[extension]
+id = "lsp-bridge"
+name = "LSP Bridge"
+description = "Export IDE diagnostics to AI assistants"
+version = "0.1.0"
+authors = ["LSP Bridge Team"]
+repository = "https://github.com/your-org/lsp-bridge"
+
+[language_servers.lsp-bridge]
+name = "LSP Bridge"
+language = ["rust", "typescript", "javascript", "python", "go", "java"]
+
+[commands]
+"lsp-bridge.export" = { title = "Export Diagnostics", key = "cmd-shift-e cmd-shift-d" }
+"lsp-bridge.export-clipboard" = { title = "Export to Clipboard", key = "cmd-shift-e cmd-shift-c" }
+"lsp-bridge.show-history" = { title = "Show Diagnostic History" }
+"lsp-bridge.apply-fixes" = { title = "Apply Quick Fixes" }

@@ -1,0 +1,692 @@
+use crate::core::config::ConfigDefaults;
+use crate::core::errors::DatabaseError;
+use crate::core::{Diagnostic, FileHash};
+use crate::impl_config_defaults;
+use rusqlite::{params, Connection, OptionalExtension};
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+use std::path::{Path, PathBuf};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use tokio::sync::RwLock;
+use tracing::{debug, info};
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DiagnosticSnapshot {
+    pub id: i64,
+    pub timestamp: SystemTime,
+    pub file_path: PathBuf,
+    pub file_hash: FileHash,
+    pub diagnostics: Vec<Diagnostic>,
+    pub error_count: usize,
+    pub warning_count: usize,
+    pub info_count: usize,
+    pub hint_count: usize,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct HistoryConfig {
+    pub db_path: PathBuf,
+    pub retention_days: u64,
+    pub max_snapshots_per_file: usize,
+    pub auto_cleanup_interval: Duration,
+}
+
+impl Default for HistoryConfig {
+    fn default() -> Self {
+        Self {
+            db_path: std::env::temp_dir().join("lsp-bridge").join("history.db"),
+            retention_days: 30,
+            max_snapshots_per_file: 1000,
+            auto_cleanup_interval: Duration::from_secs(24 * 60 * 60), // Daily
+        }
+    }
+}
+
+impl_config_defaults!(HistoryConfig, "history.toml", validate => |config: &HistoryConfig| {
+    if config.retention_days == 0 {
+        return Err(DatabaseError::Corruption {
+            details: "retention_days must be greater than 0".to_string(),
+        }.into());
+    }
+    if config.max_snapshots_per_file == 0 {
+        return Err(DatabaseError::Corruption {
+            details: "max_snapshots_per_file must be greater than 0".to_string(),
+        }.into());
+    }
+    Ok(())
+});
+
+pub struct HistoryStorage {
+    conn: RwLock<Connection>,
+    config: HistoryConfig,
+    last_cleanup: RwLock<SystemTime>,
+}
+
+impl HistoryStorage {
+    pub async fn new(config: HistoryConfig) -> Result<Self, DatabaseError> {
+        // Ensure directory exists
+        if let Some(parent) = config.db_path.parent() {
+            std::fs::create_dir_all(parent).map_err(|e| DatabaseError::Sqlite {
+                operation: "create_directories".to_string(),
+                message: format!(
+                    "Failed to create parent directories for {:?}",
+                    config.db_path
+                ),
+                source: rusqlite::Error::SqliteFailure(
+                    rusqlite::ffi::Error::new(rusqlite::ffi::SQLITE_CANTOPEN),
+                    Some(e.to_string()),
+                ),
+            })?;
+        }
+
+        let conn = Connection::open(&config.db_path).map_err(|e| DatabaseError::Sqlite {
+            operation: "open_database".to_string(),
+            message: format!("Failed to open database at {:?}", config.db_path),
+            source: e,
+        })?;
+
+        // Initialize database schema
+        Self::init_schema(&conn)?;
+
+        let storage = Self {
+            conn: RwLock::new(conn),
+            config,
+            last_cleanup: RwLock::new(SystemTime::now()),
+        };
+
+        info!(
+            "History storage initialized at {:?}",
+            storage.config.db_path
+        );
+        Ok(storage)
+    }
+
+    fn init_schema(conn: &Connection) -> Result<(), DatabaseError> {
+        conn.execute_batch(
+            r#"
+            CREATE TABLE IF NOT EXISTS diagnostic_snapshots (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                timestamp INTEGER NOT NULL,
+                file_path TEXT NOT NULL,
+                file_hash TEXT NOT NULL,
+                error_count INTEGER NOT NULL,
+                warning_count INTEGER NOT NULL,
+                info_count INTEGER NOT NULL,
+                hint_count INTEGER NOT NULL,
+                diagnostics_json TEXT NOT NULL,
+                created_at INTEGER NOT NULL
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_snapshots_file_path ON diagnostic_snapshots(file_path);
+            CREATE INDEX IF NOT EXISTS idx_snapshots_timestamp ON diagnostic_snapshots(timestamp);
+            CREATE INDEX IF NOT EXISTS idx_snapshots_created_at ON diagnostic_snapshots(created_at);
+
+            CREATE TABLE IF NOT EXISTS file_stats (
+                file_path TEXT PRIMARY KEY,
+                first_seen INTEGER NOT NULL,
+                last_seen INTEGER NOT NULL,
+                total_snapshots INTEGER NOT NULL,
+                total_errors INTEGER NOT NULL,
+                total_warnings INTEGER NOT NULL,
+                avg_error_count REAL NOT NULL,
+                avg_warning_count REAL NOT NULL,
+                max_error_count INTEGER NOT NULL,
+                max_warning_count INTEGER NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS error_patterns (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                pattern_hash TEXT NOT NULL UNIQUE,
+                first_seen INTEGER NOT NULL,
+                last_seen INTEGER NOT NULL,
+                occurrence_count INTEGER NOT NULL,
+                files_affected INTEGER NOT NULL,
+                error_message TEXT NOT NULL,
+                error_code TEXT,
+                source TEXT
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_patterns_hash ON error_patterns(pattern_hash);
+            CREATE INDEX IF NOT EXISTS idx_patterns_count ON error_patterns(occurrence_count);
+
+            CREATE TABLE IF NOT EXISTS metadata (
+                key TEXT PRIMARY KEY,
+                value TEXT NOT NULL
+            );
+            "#,
+        )?;
+
+        // Set schema version
+        conn.execute(
+            "INSERT OR REPLACE INTO metadata (key, value) VALUES (?, ?)",
+            params!["schema_version", "1.0"],
+        )?;
+
+        Ok(())
+    }
+
+    pub async fn record_snapshot(
+        &self,
+        snapshot: DiagnosticSnapshot,
+    ) -> Result<i64, DatabaseError> {
+        let conn = self.conn.write().await;
+
+        let timestamp = snapshot
+            .timestamp
+            .duration_since(UNIX_EPOCH)
+            .map_err(|e| DatabaseError::Serialization {
+                data_type: "SystemTime".to_string(),
+                reason: format!("Invalid timestamp: {}", e),
+                source: bincode::ErrorKind::Custom(format!("timestamp error: {}", e)).into(),
+            })?
+            .as_secs() as i64;
+        let created_at = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map_err(|e| DatabaseError::Serialization {
+                data_type: "SystemTime".to_string(),
+                reason: format!("Invalid current time: {}", e),
+                source: bincode::ErrorKind::Custom(format!("timestamp error: {}", e)).into(),
+            })?
+            .as_secs() as i64;
+        let diagnostics_json = serde_json::to_string(&snapshot.diagnostics)?;
+
+        let id = conn.query_row(
+            r#"
+            INSERT INTO diagnostic_snapshots 
+            (timestamp, file_path, file_hash, error_count, warning_count, 
+             info_count, hint_count, diagnostics_json, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            RETURNING id
+            "#,
+            params![
+                timestamp,
+                snapshot.file_path.to_string_lossy(),
+                format!("{:?}", snapshot.file_hash),
+                snapshot.error_count,
+                snapshot.warning_count,
+                snapshot.info_count,
+                snapshot.hint_count,
+                diagnostics_json,
+                created_at
+            ],
+            |row| row.get(0),
+        )?;
+
+        // Update file stats
+        self.update_file_stats(&conn, &snapshot)?;
+
+        // Update error patterns
+        self.update_error_patterns(&conn, &snapshot)?;
+
+        // Check if cleanup is needed
+        if self.should_cleanup().await {
+            self.cleanup_old_data(&conn).await?;
+        }
+
+        debug!("Recorded snapshot {} for {:?}", id, snapshot.file_path);
+        Ok(id)
+    }
+
+    pub async fn get_snapshots_for_file(
+        &self,
+        file_path: &Path,
+        since: Option<SystemTime>,
+        limit: Option<usize>,
+    ) -> Result<Vec<DiagnosticSnapshot>, DatabaseError> {
+        let conn = self.conn.read().await;
+
+        let mut query = String::from(
+            "SELECT id, timestamp, file_path, file_hash, error_count, warning_count, 
+             info_count, hint_count, diagnostics_json 
+             FROM diagnostic_snapshots 
+             WHERE file_path = ?",
+        );
+
+        if let Some(since_time) = since {
+            let since_ts = since_time.duration_since(UNIX_EPOCH)?.as_secs() as i64;
+            query.push_str(&format!(" AND timestamp >= {}", since_ts));
+        }
+
+        query.push_str(" ORDER BY timestamp DESC");
+
+        if let Some(limit_value) = limit {
+            query.push_str(&format!(" LIMIT {}", limit_value));
+        }
+
+        let mut stmt = conn.prepare(&query)?;
+        let snapshots = stmt
+            .query_map([file_path.to_string_lossy()], |row| {
+                let timestamp_secs: i64 = row.get(1)?;
+                let diagnostics_json: String = row.get(8)?;
+
+                Ok(DiagnosticSnapshot {
+                    id: row.get(0)?,
+                    timestamp: UNIX_EPOCH + Duration::from_secs(timestamp_secs as u64),
+                    file_path: PathBuf::from(row.get::<_, String>(2)?),
+                    file_hash: FileHash::new(row.get::<_, String>(3)?.as_bytes()),
+                    diagnostics: serde_json::from_str(&diagnostics_json).unwrap_or_default(),
+                    error_count: row.get(4)?,
+                    warning_count: row.get(5)?,
+                    info_count: row.get(6)?,
+                    hint_count: row.get(7)?,
+                })
+            })?
+            .collect::<rusqlite::Result<Vec<_>>>()?;
+
+        Ok(snapshots)
+    }
+
+    pub async fn get_file_history_stats(
+        &self,
+        file_path: &Path,
+    ) -> Result<Option<FileHistoryStats>, DatabaseError> {
+        let conn = self.conn.read().await;
+
+        let stats = conn
+            .query_row(
+                "SELECT first_seen, last_seen, total_snapshots, total_errors, total_warnings,
+             avg_error_count, avg_warning_count, max_error_count, max_warning_count
+             FROM file_stats WHERE file_path = ?",
+                [file_path.to_string_lossy()],
+                |row| {
+                    let first_seen_secs: i64 = row.get(0)?;
+                    let last_seen_secs: i64 = row.get(1)?;
+
+                    Ok(FileHistoryStats {
+                        file_path: file_path.to_path_buf(),
+                        first_seen: UNIX_EPOCH + Duration::from_secs(first_seen_secs as u64),
+                        last_seen: UNIX_EPOCH + Duration::from_secs(last_seen_secs as u64),
+                        total_snapshots: row.get(2)?,
+                        total_errors: row.get(3)?,
+                        total_warnings: row.get(4)?,
+                        avg_error_count: row.get(5)?,
+                        avg_warning_count: row.get(6)?,
+                        max_error_count: row.get(7)?,
+                        max_warning_count: row.get(8)?,
+                    })
+                },
+            )
+            .optional()?;
+
+        Ok(stats)
+    }
+
+    pub async fn get_recurring_patterns(
+        &self,
+        min_occurrences: usize,
+    ) -> Result<Vec<HistoricalErrorPattern>, DatabaseError> {
+        let conn = self.conn.read().await;
+
+        let mut stmt = conn.prepare(
+            "SELECT pattern_hash, first_seen, last_seen, occurrence_count, 
+             files_affected, error_message, error_code, source
+             FROM error_patterns
+             WHERE occurrence_count >= ?
+             ORDER BY occurrence_count DESC",
+        )?;
+
+        let patterns = stmt
+            .query_map([min_occurrences], |row| {
+                let first_seen_secs: i64 = row.get(1)?;
+                let last_seen_secs: i64 = row.get(2)?;
+
+                Ok(HistoricalErrorPattern {
+                    pattern_hash: row.get(0)?,
+                    first_seen: UNIX_EPOCH + Duration::from_secs(first_seen_secs as u64),
+                    last_seen: UNIX_EPOCH + Duration::from_secs(last_seen_secs as u64),
+                    occurrence_count: row.get(3)?,
+                    files_affected: row.get(4)?,
+                    error_message: row.get(5)?,
+                    error_code: row.get(6)?,
+                    source: row.get(7)?,
+                })
+            })?
+            .collect::<rusqlite::Result<Vec<_>>>()?;
+
+        Ok(patterns)
+    }
+
+    pub async fn get_time_series_data(
+        &self,
+        start: SystemTime,
+        end: SystemTime,
+        interval: Duration,
+    ) -> Result<Vec<TimeSeriesPoint>, DatabaseError> {
+        let conn = self.conn.read().await;
+
+        let start_ts = start.duration_since(UNIX_EPOCH)?.as_secs() as i64;
+        let end_ts = end.duration_since(UNIX_EPOCH)?.as_secs() as i64;
+        let interval_secs = interval.as_secs() as i64;
+
+        let query = format!(
+            r#"
+            SELECT 
+                (timestamp / {}) * {} as time_bucket,
+                COUNT(*) as snapshot_count,
+                SUM(error_count) as total_errors,
+                SUM(warning_count) as total_warnings,
+                AVG(error_count) as avg_errors,
+                AVG(warning_count) as avg_warnings,
+                COUNT(DISTINCT file_path) as unique_files
+            FROM diagnostic_snapshots
+            WHERE timestamp >= {} AND timestamp <= {}
+            GROUP BY time_bucket
+            ORDER BY time_bucket
+            "#,
+            interval_secs, interval_secs, start_ts, end_ts
+        );
+
+        let mut stmt = conn.prepare(&query)?;
+        let points = stmt
+            .query_map([], |row| {
+                let bucket_secs: i64 = row.get(0)?;
+
+                Ok(TimeSeriesPoint {
+                    timestamp: UNIX_EPOCH + Duration::from_secs(bucket_secs as u64),
+                    snapshot_count: row.get(1)?,
+                    total_errors: row.get(2)?,
+                    total_warnings: row.get(3)?,
+                    avg_errors: row.get(4)?,
+                    avg_warnings: row.get(5)?,
+                    unique_files: row.get(6)?,
+                })
+            })?
+            .collect::<rusqlite::Result<Vec<_>>>()?;
+
+        Ok(points)
+    }
+
+    // Private helper methods
+
+    fn update_file_stats(
+        &self,
+        conn: &Connection,
+        snapshot: &DiagnosticSnapshot,
+    ) -> Result<(), DatabaseError> {
+        let timestamp = snapshot.timestamp.duration_since(UNIX_EPOCH)?.as_secs() as i64;
+
+        conn.execute(
+            r#"
+            INSERT INTO file_stats (file_path, first_seen, last_seen, total_snapshots,
+                                    total_errors, total_warnings, avg_error_count,
+                                    avg_warning_count, max_error_count, max_warning_count)
+            VALUES (?, ?, ?, 1, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(file_path) DO UPDATE SET
+                last_seen = excluded.last_seen,
+                total_snapshots = total_snapshots + 1,
+                total_errors = total_errors + excluded.total_errors,
+                total_warnings = total_warnings + excluded.total_warnings,
+                avg_error_count = (avg_error_count * (total_snapshots - 1) + excluded.avg_error_count) / total_snapshots,
+                avg_warning_count = (avg_warning_count * (total_snapshots - 1) + excluded.avg_warning_count) / total_snapshots,
+                max_error_count = MAX(max_error_count, excluded.max_error_count),
+                max_warning_count = MAX(max_warning_count, excluded.max_warning_count)
+            "#,
+            params![
+                snapshot.file_path.to_string_lossy(),
+                timestamp,
+                timestamp,
+                snapshot.error_count,
+                snapshot.warning_count,
+                snapshot.error_count as f64,
+                snapshot.warning_count as f64,
+                snapshot.error_count,
+                snapshot.warning_count
+            ],
+        )?;
+
+        Ok(())
+    }
+
+    fn update_error_patterns(
+        &self,
+        conn: &Connection,
+        snapshot: &DiagnosticSnapshot,
+    ) -> Result<(), DatabaseError> {
+        use sha2::{Digest, Sha256};
+
+        let timestamp = snapshot.timestamp.duration_since(UNIX_EPOCH)?.as_secs() as i64;
+
+        // Track unique error patterns
+        let mut pattern_counts = HashMap::new();
+
+        for diagnostic in &snapshot.diagnostics {
+            if diagnostic.severity == crate::core::DiagnosticSeverity::Error {
+                // Create pattern hash from message and code
+                let mut hasher = Sha256::new();
+                hasher.update(&diagnostic.message);
+                if let Some(code) = &diagnostic.code {
+                    hasher.update(code.as_bytes());
+                }
+                let pattern_hash = format!("{:x}", hasher.finalize());
+
+                pattern_counts.entry(pattern_hash.clone()).or_insert((
+                    diagnostic.message.clone(),
+                    diagnostic.code.clone(),
+                    diagnostic.source.clone(),
+                ));
+            }
+        }
+
+        // Update patterns in database
+        for (hash, (message, code, source)) in pattern_counts {
+            let code_str: Option<&str> = code.as_ref().map(|c| c.as_str());
+            let source_str: &str = source.as_str();
+
+            conn.execute(
+                r#"
+                INSERT INTO error_patterns (pattern_hash, first_seen, last_seen,
+                                            occurrence_count, files_affected,
+                                            error_message, error_code, source)
+                VALUES (?, ?, ?, 1, 1, ?, ?, ?)
+                ON CONFLICT(pattern_hash) DO UPDATE SET
+                    last_seen = excluded.last_seen,
+                    occurrence_count = occurrence_count + 1,
+                    files_affected = files_affected + 
+                        CASE WHEN EXISTS (
+                            SELECT 1 FROM diagnostic_snapshots 
+                            WHERE file_path = ? AND diagnostics_json LIKE '%' || ? || '%'
+                        ) THEN 0 ELSE 1 END
+                "#,
+                params![
+                    hash,
+                    timestamp,
+                    timestamp,
+                    message,
+                    code_str,
+                    source_str,
+                    snapshot.file_path.to_string_lossy(),
+                    hash.clone()
+                ],
+            )?;
+        }
+
+        Ok(())
+    }
+
+    async fn should_cleanup(&self) -> bool {
+        let last_cleanup = self.last_cleanup.read().await;
+
+        match SystemTime::now().duration_since(*last_cleanup) {
+            Ok(duration) => duration >= self.config.auto_cleanup_interval,
+            Err(_) => true, // Clock went backwards, do cleanup
+        }
+    }
+
+    async fn cleanup_old_data(&self, conn: &Connection) -> Result<(), DatabaseError> {
+        let retention_secs = self.config.retention_days * 24 * 60 * 60;
+        let cutoff_time =
+            SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs() as i64 - retention_secs as i64;
+
+        // Delete old snapshots
+        let deleted = conn.execute(
+            "DELETE FROM diagnostic_snapshots WHERE created_at < ?",
+            [cutoff_time],
+        )?;
+
+        if deleted > 0 {
+            info!("Cleaned up {} old diagnostic snapshots", deleted);
+
+            // Update file stats to remove files with no snapshots
+            conn.execute(
+                "DELETE FROM file_stats WHERE file_path NOT IN (SELECT DISTINCT file_path FROM diagnostic_snapshots)",
+                [],
+            )?;
+        }
+
+        // Update last cleanup time
+        *self.last_cleanup.write().await = SystemTime::now();
+
+        Ok(())
+    }
+
+    pub async fn export_ml_ready_data(&self, output_path: &Path) -> Result<(), DatabaseError> {
+        let conn = self.conn.read().await;
+
+        // Export data in a format suitable for ML training
+        let query = r#"
+            SELECT 
+                s.timestamp,
+                s.file_path,
+                s.diagnostics_json,
+                f.avg_error_count,
+                f.avg_warning_count,
+                f.total_snapshots
+            FROM diagnostic_snapshots s
+            JOIN file_stats f ON s.file_path = f.file_path
+            ORDER BY s.timestamp
+        "#;
+
+        let mut stmt = conn.prepare(query)?;
+        let mut ml_data = Vec::new();
+
+        let rows = stmt.query_map([], |row| {
+            Ok(MLDataPoint {
+                timestamp: row.get::<_, i64>(0)?,
+                file_path: row.get::<_, String>(1)?,
+                diagnostics: row.get::<_, String>(2)?,
+                historical_avg_errors: row.get::<_, f64>(3)?,
+                historical_avg_warnings: row.get::<_, f64>(4)?,
+                file_complexity_score: row.get::<_, i64>(5)? as f64 / 100.0,
+            })
+        })?;
+
+        for row in rows {
+            ml_data.push(row?);
+        }
+
+        // Write to file in JSON Lines format
+        let file = std::fs::File::create(output_path)?;
+        let mut writer = std::io::BufWriter::new(file);
+
+        for point in ml_data {
+            serde_json::to_writer(&mut writer, &point)?;
+            writeln!(&mut writer)?;
+        }
+
+        info!("Exported ML-ready data to {:?}", output_path);
+        Ok(())
+    }
+}
+
+// Supporting types
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FileHistoryStats {
+    pub file_path: PathBuf,
+    pub first_seen: SystemTime,
+    pub last_seen: SystemTime,
+    pub total_snapshots: usize,
+    pub total_errors: usize,
+    pub total_warnings: usize,
+    pub avg_error_count: f64,
+    pub avg_warning_count: f64,
+    pub max_error_count: usize,
+    pub max_warning_count: usize,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct HistoricalErrorPattern {
+    pub pattern_hash: String,
+    pub first_seen: SystemTime,
+    pub last_seen: SystemTime,
+    pub occurrence_count: usize,
+    pub files_affected: usize,
+    pub error_message: String,
+    pub error_code: Option<String>,
+    pub source: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TimeSeriesPoint {
+    pub timestamp: SystemTime,
+    pub snapshot_count: usize,
+    pub total_errors: usize,
+    pub total_warnings: usize,
+    pub avg_errors: f64,
+    pub avg_warnings: f64,
+    pub unique_files: usize,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MLDataPoint {
+    pub timestamp: i64,
+    pub file_path: String,
+    pub diagnostics: String,
+    pub historical_avg_errors: f64,
+    pub historical_avg_warnings: f64,
+    pub file_complexity_score: f64,
+}
+
+use std::io::Write;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tempfile::TempDir;
+
+    #[tokio::test]
+    async fn test_history_storage_basic() -> Result<(), DatabaseError> {
+        let temp_dir = TempDir::new()?;
+        let config = HistoryConfig {
+            db_path: temp_dir.path().join("test_history.db"),
+            retention_days: 30,
+            max_snapshots_per_file: 100,
+            auto_cleanup_interval: Duration::from_secs(3600),
+        };
+
+        let storage = HistoryStorage::new(config).await?;
+
+        // Create test snapshot
+        let snapshot = DiagnosticSnapshot {
+            id: 0,
+            timestamp: SystemTime::now(),
+            file_path: PathBuf::from("/test/file.rs"),
+            file_hash: FileHash::new(b"test content"),
+            diagnostics: vec![],
+            error_count: 2,
+            warning_count: 1,
+            info_count: 0,
+            hint_count: 0,
+        };
+
+        // Record snapshot
+        let id = storage.record_snapshot(snapshot.clone()).await?;
+        assert!(id > 0);
+
+        // Retrieve snapshots
+        let snapshots = storage
+            .get_snapshots_for_file(&snapshot.file_path, None, None)
+            .await?;
+        assert_eq!(snapshots.len(), 1);
+        assert_eq!(snapshots[0].error_count, 2);
+
+        // Check file stats
+        let stats = storage.get_file_history_stats(&snapshot.file_path).await?;
+        assert!(stats.is_some());
+        let stats = stats.unwrap();
+        assert_eq!(stats.total_errors, 2);
+        assert_eq!(stats.total_warnings, 1);
+
+        Ok(())
+    }
+}

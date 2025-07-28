@@ -1,16 +1,22 @@
+use super::workspace_filter::WorkspaceFilter;
 use crate::core::{
-    PrivacyFilter as PrivacyFilterTrait, PrivacyPolicy, Diagnostic, DiagnosticSeverity
+    Diagnostic, DiagnosticSeverity, PrivacyFilter as PrivacyFilterTrait, PrivacyPolicy,
 };
 use anyhow::Result;
 use std::collections::HashMap;
+use std::path::{Path, PathBuf};
 
 pub struct PrivacyFilter {
     policy: PrivacyPolicy,
+    workspace_filter: Option<WorkspaceFilter>,
 }
 
 impl PrivacyFilter {
     pub fn new(policy: PrivacyPolicy) -> Self {
-        Self { policy }
+        Self {
+            policy,
+            workspace_filter: None,
+        }
     }
 
     pub fn with_default_policy() -> Self {
@@ -25,6 +31,11 @@ impl PrivacyFilter {
         Self::new(PrivacyPolicy::permissive())
     }
 
+    pub fn with_workspace(mut self, workspace_root: PathBuf) -> Self {
+        self.workspace_filter = Some(WorkspaceFilter::new(workspace_root));
+        self
+    }
+
     pub fn update_policy(&mut self, policy: PrivacyPolicy) {
         self.policy = policy;
     }
@@ -33,52 +44,56 @@ impl PrivacyFilter {
         &self.policy
     }
 
+    pub fn set_workspace_filter(&mut self, workspace_root: PathBuf) {
+        self.workspace_filter = Some(WorkspaceFilter::new(workspace_root));
+    }
+
     fn sanitize_string_literals(&self, message: &str) -> String {
         // Remove quoted strings but preserve structure
         let mut result = message.to_string();
-        
+
         // Replace double quotes
         result = regex::Regex::new(r#""[^"]*""#)
             .unwrap()
             .replace_all(&result, r#""[STRING]""#)
             .to_string();
-        
+
         // Replace single quotes
         result = regex::Regex::new(r"'[^']*'")
             .unwrap()
             .replace_all(&result, "'[STRING]'")
             .to_string();
-        
+
         // Replace template literals
         result = regex::Regex::new(r"`[^`]*`")
             .unwrap()
             .replace_all(&result, "`[STRING]`")
             .to_string();
-        
+
         result
     }
 
     fn sanitize_comments(&self, message: &str) -> String {
         let mut result = message.to_string();
-        
+
         // Remove line comments
         result = regex::Regex::new(r"//.*$")
             .unwrap()
             .replace_all(&result, "// [COMMENT]")
             .to_string();
-        
+
         // Remove block comments
         result = regex::Regex::new(r"/\*[\s\S]*?\*/")
             .unwrap()
             .replace_all(&result, "/* [COMMENT] */")
             .to_string();
-        
+
         // Remove hash comments
         result = regex::Regex::new(r"#.*$")
             .unwrap()
             .replace_all(&result, "# [COMMENT]")
             .to_string();
-        
+
         result
     }
 
@@ -106,9 +121,13 @@ impl PrivacyFilter {
         let mut hasher = DefaultHasher::new();
         input.hash(&mut hasher);
         let hash = hasher.finish();
-        
+
         // Convert to base36 and take first 6 chars
-        radix_fmt::radix(hash, 36).to_string().chars().take(6).collect()
+        radix_fmt::radix(hash, 36)
+            .to_string()
+            .chars()
+            .take(6)
+            .collect()
     }
 
     fn limit_diagnostics_per_file(&self, diagnostics: Vec<Diagnostic>) -> Vec<Diagnostic> {
@@ -117,7 +136,7 @@ impl PrivacyFilter {
         }
 
         let mut file_groups: HashMap<String, Vec<Diagnostic>> = HashMap::new();
-        
+
         // Group by file
         for diagnostic in diagnostics {
             file_groups
@@ -131,7 +150,7 @@ impl PrivacyFilter {
         for (_, mut file_diagnostics) in file_groups {
             // Sort by severity (errors first)
             file_diagnostics.sort_by_key(|d| d.severity as u8);
-            
+
             // Take only the allowed number
             file_diagnostics.truncate(self.policy.max_diagnostics_per_file);
             limited.extend(file_diagnostics);
@@ -158,6 +177,14 @@ impl PrivacyFilterTrait for PrivacyFilter {
     }
 
     fn should_include_diagnostic(&self, diagnostic: &Diagnostic) -> bool {
+        // First check workspace filter if available
+        if let Some(ref workspace_filter) = self.workspace_filter {
+            let file_path = Path::new(&diagnostic.file);
+            if !workspace_filter.should_include_file(file_path) {
+                return false;
+            }
+        }
+
         // Check against exclusion patterns
         for pattern in &self.policy.exclude_patterns {
             if glob::Pattern::new(pattern)
