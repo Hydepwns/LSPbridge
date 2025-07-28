@@ -4,7 +4,7 @@ version = "0.2.0"
 edition = "2021"
 description = "Universal bridge for exporting IDE diagnostics to AI assistants"
 license = "MIT"
-repository = "https://github.com/your-org/lsp-bridge"
+repository = "https://github.com/hydepwns/lsp-bridge"
 keywords = ["lsp", "diagnostics", "ide", "ai", "claude"]
 categories = ["command-line-utilities", "development-tools"]
 exclude = ["vscode-extension/"]
@@ -90,4 +90,3 @@ harness = false
 [[bench]]
 name = "lsp_bridge_benchmarks"
 harness = false
-
