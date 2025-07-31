@@ -1,13 +1,17 @@
 [package]
-name = "lsp-bridge"
-version = "0.2.0"
+name = "lspbridge"
+version = "0.3.0"
 edition = "2021"
+rust-version = "1.70"
 description = "Universal bridge for exporting IDE diagnostics to AI assistants"
+authors = ["DROO <drew@axol.io>"]
 license = "MIT"
-repository = "https://github.com/hydepwns/lsp-bridge"
+repository = "https://github.com/Hydepwns/LSPbridge"
+homepage = "https://github.com/Hydepwns/LSPbridge"
+documentation = "https://docs.rs/lspbridge"
 keywords = ["lsp", "diagnostics", "ide", "ai", "claude"]
-categories = ["command-line-utilities", "development-tools"]
-exclude = ["vscode-extension/"]
+categories = ["command-line-utilities", "development-tools", "development-tools::profiling"]
+exclude = ["vscode-extension/", "editors/", "tests/", "benches/", ".github/"]
 
 [lib]
 name = "lsp_bridge"
@@ -39,6 +43,8 @@ uuid = { version = "1.0", features = ["v4", "serde"] }
 async-trait = "0.1"
 # Regular expressions
 regex = "1.0"
+# Lazy static initialization
+once_cell = "1.19"
 # Radix formatting
 radix_fmt = "1.0"
 # TTY detection
@@ -48,18 +54,25 @@ tree-sitter = "0.20"
 tree-sitter-rust = "0.20"
 tree-sitter-typescript = "0.20"
 tree-sitter-python = "0.20"
+# XML parsing for Maven POM files
+quick-xml = "0.31"
 # Performance and parallel processing
 rayon = "1.8"
 # Hashing for file change detection
 sha2 = "0.10"
 # Serialization for persistent cache
 bincode = "1.3"
+# Compression for cache optimization
+flate2 = "1.0"
 # Database for persistent storage
 sled = "0.34"
 # SQLite for historical data storage
 rusqlite = { version = "0.31", features = ["bundled", "chrono"] }
 # Metrics collection
 prometheus = "0.13"
+# OpenTelemetry support
+opentelemetry = { version = "0.21", features = ["trace", "metrics"] }
+opentelemetry-otlp = { version = "0.14", features = ["tonic"] }
 # Terminal colors and interactive REPL
 colored = "2.0"
 crossterm = "0.27"
@@ -73,11 +86,26 @@ serde_yaml = "0.9"
 futures = "0.3"
 # Macro utilities for builder patterns
 paste = "1.0"
+# Concurrent hashmap for performance optimization
+dashmap = "5.5"
+# System information for adaptive scaling
+sysinfo = "0.30"
+# HTTP client for future network features
+reqwest = { version = "0.11", features = ["json"], optional = true }
+# Notification support for file watching
+notify = "6.1"
+# Jitter for retry logic
+rand_distr = "0.4"
 
 [dev-dependencies]
 tempfile = "3.0"
 pretty_assertions = "1.0"
 criterion = { version = "0.5", features = ["html_reports"] }
+memmap2 = "0.9"
+mockall = "0.12"
+proptest = "1.4"
+test-case = "3.3"
+serial_test = "3.0"
 
 [[test]]
 name = "integration"
@@ -90,3 +118,14 @@ harness = false
 [[bench]]
 name = "lsp_bridge_benchmarks"
 harness = false
+
+[[bench]]
+name = "file_scanning_benchmarks"
+harness = false
+
+[features]
+default = ["cli", "git-integration"]
+cli = []
+git-integration = []
+network = ["reqwest"]
+experimental = []

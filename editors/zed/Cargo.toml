@@ -1,17 +1,39 @@
 [package]
 name = "lsp-bridge-zed"
-version = "0.1.0"
+version = "0.3.0"
 edition = "2021"
+rust-version = "1.70"
+description = "Zed extension for LSP Bridge - Universal diagnostics exporter"
+authors = ["DROO <drew@axol.io>"]
+license = "MIT"
+repository = "https://github.com/Hydepwns/LSPbridge"
+keywords = ["zed", "lsp", "diagnostics", "ai", "claude"]
+categories = ["development-tools"]
 
 [lib]
 crate-type = ["cdylib"]
 
 [dependencies]
-zed_extension_api = "0.0.4"
+zed_extension_api = "0.0.6"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
+anyhow = "1.0"
+tracing = "0.1"
+
+[dev-dependencies]
+tokio = { version = "1.0", features = ["rt", "macros"] }
 
 [profile.release]
 lto = true
 codegen-units = 1
 strip = true
+opt-level = 3
+panic = "abort"
+
+[profile.dev]
+opt-level = 0
+debug = true
+
+[features]
+default = []
+debug-logging = []

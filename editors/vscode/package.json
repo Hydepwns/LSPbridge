@@ -2,8 +2,20 @@
   "name": "lsp-bridge",
   "displayName": "LSP Bridge",
   "description": "Export IDE diagnostics to AI assistants with LSP Bridge",
-  "version": "0.1.0",
-  "publisher": "lsp-bridge",
+  "version": "0.3.0",
+  "publisher": "DROO",
+  "author": {
+    "name": "DROO",
+    "email": "drew@axol.io"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Hydepwns/LSPbridge"
+  },
+  "bugs": {
+    "url": "https://github.com/Hydepwns/LSPbridge/issues"
+  },
+  "homepage": "https://github.com/Hydepwns/LSPbridge#readme",
   "engines": {
     "vscode": "^1.85.0"
   },
