@@ -55,12 +55,12 @@ pub struct MultiRepoConfig {
 impl Default for MultiRepoConfig {
     fn default() -> Self {
         Self {
-            registry_path: PathBuf::from(".lsp-bridge/repos.db"),
+            registry_path: PathBuf::from("lspbridge/repos.db"),
             team_db_path: None,
             auto_detect_monorepo: true,
             enable_cross_repo_types: true,
             max_concurrent_repos: 4,
-            cache_dir: PathBuf::from(".lsp-bridge/cache/multi-repo"),
+            cache_dir: PathBuf::from("lspbridge/cache/multi-repo"),
         }
     }
 }

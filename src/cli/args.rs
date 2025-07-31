@@ -16,16 +16,16 @@ use crate::config::ConfigAction;
 /// 
 /// ```bash
 /// # Export current diagnostics to JSON
-/// lsp-bridge export --format json --output diagnostics.json
+/// lspbridge export --format json --output diagnostics.json
 /// 
 /// # Start interactive query session
-/// lsp-bridge query --interactive
+/// lspbridge query --interactive
 /// 
 /// # Generate AI training data
-/// lsp-bridge ai-training export training_data.jsonl
+/// lspbridge ai-training export training_data.jsonl
 /// ```
 #[derive(Parser)]
-#[command(name = "lsp-bridge")]
+#[command(name = "lspbridge")]
 #[command(about = "Universal bridge for exporting IDE diagnostics to AI assistants")]
 #[command(version)]
 pub struct Cli {

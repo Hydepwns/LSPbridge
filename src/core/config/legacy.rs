@@ -130,7 +130,7 @@ pub mod common_fields {
         fn default() -> Self {
             Self {
                 enable_cache: true,
-                cache_dir: std::env::temp_dir().join("lsp-bridge-cache"),
+                cache_dir: std::env::temp_dir().join("lspbridge-cache"),
                 max_size_mb: 100,
                 max_entries: 10000,
                 ttl_hours: 24,

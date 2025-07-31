@@ -19,7 +19,7 @@ impl ConfigCommand {
 #[async_trait]
 impl Command for ConfigCommand {
     async fn execute(&self) -> Result<()> {
-        let config_path = std::env::current_dir()?.join(".lsp-bridge.toml");
+        let config_path = std::env::current_dir()?.join("lspbridge.toml");
 
         match &self.action {
             ConfigAction::Init => {

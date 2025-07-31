@@ -40,7 +40,7 @@ impl Default for CacheConfig {
     fn default() -> Self {
         Self {
             cache_dir: crate::config::cache_dir()
-                .unwrap_or_else(|_| std::env::temp_dir().join("lsp-bridge-cache")),
+                .unwrap_or_else(|_| std::env::temp_dir().join("lspbridge-cache")),
             max_size_mb: 100,
             max_entries: 10000,
             ttl: Duration::from_secs(24 * 60 * 60), // 24 hours

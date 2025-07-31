@@ -140,7 +140,7 @@ impl Default for DynamicConfig {
             cache: DynamicCacheConfig {
                 enable_persistent_cache: true,
                 enable_memory_cache: true,
-                cache_dir: PathBuf::from(".lsp-bridge/cache"),
+                cache_dir: PathBuf::from(".lspbridge/cache"),
                 max_size_mb: 512,
                 max_entries: 10000,
                 ttl_hours: 24,

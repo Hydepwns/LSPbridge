@@ -93,7 +93,7 @@ impl QuickFixCommand {
         // Set up rollback manager
         let rollback_dir = dirs::data_dir()
             .unwrap_or_else(|| PathBuf::from("."))
-            .join("lsp-bridge")
+            .join("lspbridge")
             .join("rollback");
         let mut rollback_manager = RollbackManager::new(rollback_dir);
         rollback_manager.init().await?;
@@ -199,7 +199,7 @@ impl QuickFixCommand {
     async fn rollback_fixes(&self, session_id: Option<String>, list: bool) -> Result<()> {
         let rollback_dir = dirs::data_dir()
             .unwrap_or_else(|| PathBuf::from("."))
-            .join("lsp-bridge")
+            .join("lspbridge")
             .join("rollback");
         let mut rollback_manager = RollbackManager::new(rollback_dir);
         rollback_manager.init().await?;

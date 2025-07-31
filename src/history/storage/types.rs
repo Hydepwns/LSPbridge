@@ -32,7 +32,7 @@ impl Default for HistoryConfig {
     fn default() -> Self {
         Self {
             db_path: crate::config::data_dir()
-                .unwrap_or_else(|_| std::env::temp_dir().join("lsp-bridge"))
+                .unwrap_or_else(|_| std::env::temp_dir().join("lspbridge"))
                 .join("history.db"),
             retention_days: 30,
             max_snapshots_per_file: 1000,

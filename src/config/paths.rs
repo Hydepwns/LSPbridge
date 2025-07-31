@@ -11,7 +11,7 @@ pub fn config_dir() -> Result<PathBuf> {
     }
     
     dirs::config_dir()
-        .map(|p| p.join("lsp-bridge"))
+        .map(|p| p.join("lspbridge"))
         .context("Unable to determine config directory for the current platform")
 }
 
@@ -24,7 +24,7 @@ pub fn cache_dir() -> Result<PathBuf> {
     
     // Use platform-specific cache directory
     dirs::cache_dir()
-        .map(|p| p.join("lsp-bridge"))
+        .map(|p| p.join("lspbridge"))
         .context("Unable to determine cache directory for the current platform")
 }
 
@@ -35,7 +35,7 @@ pub fn data_dir() -> Result<PathBuf> {
     }
     
     dirs::data_dir()
-        .map(|p| p.join("lsp-bridge"))
+        .map(|p| p.join("lspbridge"))
         .context("Unable to determine data directory for the current platform")
 }
 
@@ -50,14 +50,14 @@ pub fn log_dir() -> Result<PathBuf> {
     {
         Ok(dirs::home_dir()
             .context("Unable to determine home directory")?
-            .join("Library/Logs/lsp-bridge"))
+            .join("Library/Logs/lspbridge"))
     }
     
     #[cfg(target_os = "linux")]
     {
         // Try XDG_STATE_HOME first, then fallback to data directory
         Ok(env::var("XDG_STATE_HOME")
-            .map(|p| PathBuf::from(p).join("lsp-bridge/logs"))
+            .map(|p| PathBuf::from(p).join("lspbridge/logs"))
             .unwrap_or_else(|_| data_dir().unwrap_or_default().join("logs")))
     }
     
@@ -78,7 +78,7 @@ pub fn temp_dir() -> PathBuf {
         return PathBuf::from(custom_dir);
     }
     
-    env::temp_dir().join("lsp-bridge")
+    env::temp_dir().join("lspbridge")
 }
 
 /// Platform-specific path configuration
@@ -145,10 +145,10 @@ mod tests {
         assert!(paths.data_dir.is_absolute());
         assert!(paths.log_dir.is_absolute());
         
-        // Paths should contain "lsp-bridge"
-        assert!(paths.config_dir.to_string_lossy().contains("lsp-bridge"));
-        assert!(paths.cache_dir.to_string_lossy().contains("lsp-bridge"));
-        assert!(paths.data_dir.to_string_lossy().contains("lsp-bridge"));
+        // Paths should contain "lspbridge"
+        assert!(paths.config_dir.to_string_lossy().contains("lspbridge"));
+        assert!(paths.cache_dir.to_string_lossy().contains("lspbridge"));
+        assert!(paths.data_dir.to_string_lossy().contains("lspbridge"));
     }
     
     #[test]

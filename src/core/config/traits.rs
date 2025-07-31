@@ -52,7 +52,7 @@ impl Default for CacheConfig {
         Self {
             enable_cache: true,
             enable_persistent_cache: true,
-            cache_dir: std::env::temp_dir().join("lsp-bridge-cache"),
+            cache_dir: std::env::temp_dir().join("lspbridge-cache"),
             max_size_mb: 100,
             max_entries: 10000,
             ttl_hours: 24,
@@ -196,12 +196,12 @@ pub struct MultiRepoConfig {
 impl Default for MultiRepoConfig {
     fn default() -> Self {
         Self {
-            registry_path: PathBuf::from(".lsp-bridge/repos.db"),
+            registry_path: PathBuf::from(".lspbridge/repos.db"),
             team_db_path: None,
             auto_detect_monorepo: true,
             enable_cross_repo_types: true,
             max_concurrent_repos: 4,
-            cache_dir: PathBuf::from(".lsp-bridge/cache/multi-repo"),
+            cache_dir: PathBuf::from(".lspbridge/cache/multi-repo"),
         }
     }
 }

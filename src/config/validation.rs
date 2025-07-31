@@ -104,7 +104,7 @@ impl ConfigValidator {
         for (name, dir) in dirs {
             if dir.exists() {
                 // Check if we can write to it
-                let test_file = dir.join(".lsp-bridge-test");
+                let test_file = dir.join(".lspbridge-test");
                 match fs::write(&test_file, "test") {
                     Ok(_) => {
                         let _ = fs::remove_file(test_file);

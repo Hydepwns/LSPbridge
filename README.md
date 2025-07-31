@@ -5,9 +5,11 @@
 [![MIT licensed](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
 [![Build Status](https://github.com/Hydepwns/LSPbridge/workflows/CI/badge.svg)](https://github.com/Hydepwns/LSPbridge/actions)
 
-> **Project Name**: LSP Bridge | **CLI Tool**: `lsp-bridge` | **Package**: `lspbridge`
+> **Project Name**: LSP Bridge | **CLI Tool**: `lspbridge` | **Package**: `lspbridge`
 
 Universal bridge for exporting IDE diagnostics to AI assistants.
+
+> STATUS: In Development, pre-release -- wait for 1.0.0 for production
 
 ## Overview
 
@@ -39,8 +41,8 @@ cargo install --path .
 ### IDE Extensions
 
 Install via your IDE's extension manager:
-- VS Code: Search for "LSP Bridge" or run `code --install-extension lsp-bridge`
-- Neovim: Add `Hydepwns/lsp-bridge.nvim` to your plugin manager
+- VS Code: Search for "LSP Bridge" or run `code --install-extension lspbridge`
+- Neovim: Add `Hydepwns/lspbridge.nvim` to your plugin manager
 - Zed: Available in extension registry (coming soon)
 
 ## Supported Languages
@@ -68,21 +70,21 @@ Additional linters supported:
 
 ```bash
 # Export diagnostics (reads from stdin)
-cat diagnostics.json | lsp-bridge export --format claude
+cat diagnostics.json | lspbridge export --format claude
 
 # Export with privacy controls
-cat diagnostics.json | lsp-bridge export --format claude --privacy strict
+cat diagnostics.json | lspbridge export --format claude --privacy strict
 
 # Export only errors to file
-cat diagnostics.json | lsp-bridge export --errors-only -o errors.md
+cat diagnostics.json | lspbridge export --errors-only -o errors.md
 
 # Watch mode (placeholder - needs IDE integration)
-lsp-bridge watch --format claude
+lspbridge watch --format claude
 
 # Configuration management
-lsp-bridge config init      # Create default configuration
-lsp-bridge config show      # Display current settings
-lsp-bridge config validate  # Check configuration validity
+lspbridge config init      # Create default configuration
+lspbridge config show      # Display current settings
+lspbridge config validate  # Check configuration validity
 ```
 
 ## Architecture
@@ -251,6 +253,6 @@ max_size_mb = 500
 respect_gitignore = true
 ```
 
-Use profiles for different environments: `LSP_BRIDGE_PROFILE=production lsp-bridge export`
+Use profiles for different environments: `LSP_BRIDGE_PROFILE=production lspbridge export`
 
 For detailed configuration options, monitoring setup, and security features, see the [full documentation](docs/).

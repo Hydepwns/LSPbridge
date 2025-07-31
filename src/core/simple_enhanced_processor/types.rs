@@ -18,7 +18,7 @@ pub struct SimpleEnhancedConfig {
 impl Default for SimpleEnhancedConfig {
     fn default() -> Self {
         Self {
-            cache_dir: std::env::temp_dir().join("lsp-bridge-cache"),
+            cache_dir: std::env::temp_dir().join("lspbridge-cache"),
             enable_metrics: true,
             enable_persistent_cache: true,
             auto_optimization: true,
