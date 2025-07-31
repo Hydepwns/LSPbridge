@@ -8,15 +8,83 @@ use crate::project::ProjectInfo;
 use std::collections::HashMap;
 use std::path::Path;
 
+/// Service for exporting diagnostic data to various formats.
+/// 
+/// The ExportService provides functionality to export diagnostic data
+/// in multiple formats including JSON, CSV, Markdown, and Claude-optimized formats.
+/// Supports filtering, sorting, and project-specific metadata enrichment.
+/// 
+/// # Features
+/// 
+/// - **Multiple Formats**: JSON, CSV, Markdown, Claude-optimized
+/// - **Project Integration**: Automatic project metadata detection
+/// - **Flexible Sorting**: By file, severity, source, or timestamp
+/// - **Rich Filtering**: By severity level, file patterns, error codes
+/// - **Privacy Awareness**: Respects privacy settings for sensitive data
+/// 
+/// # Examples
+/// 
+/// ```rust
+/// use lspbridge::export::ExportService;
+/// use lspbridge::core::{ExportConfig, OutputFormat};
+/// use std::path::Path;
+/// 
+/// // Basic export service
+/// let service = ExportService::new();
+/// 
+/// // Export service with project context
+/// let project_root = Path::new("/path/to/project");
+/// let service = ExportService::with_project_info(project_root);
+/// 
+/// // Export diagnostics
+/// let config = ExportConfig {
+///     format: OutputFormat::Json,
+///     include_project_info: true,
+///     ..Default::default()
+/// };
+/// let output = service.export_diagnostics(&diagnostics, &config)?;
+/// ```
 pub struct ExportService {
     project_info: Option<ProjectInfo>,
 }
 
 impl ExportService {
+    /// Create a new ExportService without project context.
+    /// 
+    /// This creates a basic export service that can export diagnostics
+    /// without project-specific metadata. For richer exports with build
+    /// system information and project structure, use [`with_project_info`].
+    /// 
+    /// # Examples
+    /// 
+    /// ```rust
+    /// use lspbridge::export::ExportService;
+    /// 
+    /// let service = ExportService::new();
+    /// ```
     pub fn new() -> Self {
         Self { project_info: None }
     }
 
+    /// Create a new ExportService with project context.
+    /// 
+    /// Analyzes the project at the given root path to extract metadata
+    /// including build system information, dependencies, and project structure.
+    /// This enriches exports with additional context.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `project_root` - Path to the root directory of the project
+    /// 
+    /// # Examples
+    /// 
+    /// ```rust
+    /// use lspbridge::export::ExportService;
+    /// use std::path::Path;
+    /// 
+    /// let project_root = Path::new("/path/to/rust/project");
+    /// let service = ExportService::with_project_info(project_root);
+    /// ```
     pub fn with_project_info(project_root: &Path) -> Self {
         let project_info = ProjectInfo::analyze(project_root).ok();
         Self { project_info }

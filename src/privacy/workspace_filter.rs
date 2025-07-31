@@ -311,10 +311,17 @@ node_modules/
 
     #[test]
     fn test_hidden_paths() {
-        let hidden_path = Path::new("/home/user/.config/app/config.toml");
-        let normal_path = Path::new("/home/user/documents/file.txt");
+        // Test with relative paths to avoid temp directory interference
+        let hidden_path = Path::new(".config/app/config.toml");
+        let normal_path = Path::new("documents/file.txt");
+        
+        // Test absolute paths as well
+        let abs_hidden = Path::new("/home/user/.ssh/config");
+        let abs_normal = Path::new("/home/user/work/project.rs");
 
-        assert!(WorkspaceFilter::is_hidden_path(hidden_path));
-        assert!(!WorkspaceFilter::is_hidden_path(normal_path));
+        assert!(WorkspaceFilter::is_hidden_path(&hidden_path));
+        assert!(!WorkspaceFilter::is_hidden_path(&normal_path));
+        assert!(WorkspaceFilter::is_hidden_path(&abs_hidden));
+        assert!(!WorkspaceFilter::is_hidden_path(&abs_normal));
     }
 }

@@ -1,0 +1,566 @@
+use super::base::{AnalyzerBase, ComplexityScorer, DiagnosticPatterns};
+use super::error_codes::TypeScriptErrorCode;
+use super::language_analyzer::{
+    ContextRequirements, DiagnosticAnalysis, DiagnosticCategory, FixSuggestion, LanguageAnalyzer,
+};
+use crate::core::constants::config_files;
+use crate::core::{Diagnostic, SemanticContext};
+use regex::Regex;
+
+pub struct TypeScriptAnalyzer;
+
+impl AnalyzerBase for TypeScriptAnalyzer {}
+
+impl TypeScriptAnalyzer {
+    pub fn new() -> Self {
+        Self
+    }
+    
+    /// Infer property type from diagnostic context
+    fn infer_property_type(
+        &self,
+        diagnostic: &Diagnostic,
+        property: &str,
+        context: Option<&SemanticContext>,
+    ) -> String {
+        // First, try to extract type from the diagnostic message itself
+        // Many TypeScript errors include type information
+        let message = &diagnostic.message;
+        
+        // Pattern: "Property 'x' is missing in type '{...}' but required in type '{...}'"
+        if let Some(cap) = Regex::new(&format!(r#"['"]{}"['"].*?:\s*([^;,}}]+)"#, regex::escape(property)))
+            .ok()
+            .and_then(|re| re.captures(message))
+        {
+            if let Some(type_match) = cap.get(1) {
+                let type_str = type_match.as_str().trim();
+                if !type_str.is_empty() && type_str != "any" {
+                    return type_str.to_string();
+                }
+            }
+        }
+        
+        // Try to infer from usage context
+        if let Some(ctx) = context {
+            // Check if property is used in function context
+            if let Some(func_ctx) = &ctx.function_context {
+                // Look for patterns like "property = value" or "property: type"
+                if let Some(cap) = Regex::new(&format!(r"{}\s*[=:]\s*([^;,\n]+)", regex::escape(property)))
+                    .ok()
+                    .and_then(|re| re.captures(&func_ctx.body))
+                {
+                    if let Some(value_match) = cap.get(1) {
+                        let value = value_match.as_str().trim();
+                        return self.infer_type_from_value(value);
+                    }
+                }
+            }
+        }
+        
+        // Common property name patterns
+        match property {
+            s if s.ends_with("Id") || s.ends_with("ID") => "string".to_string(),
+            s if s.starts_with("is") || s.starts_with("has") || s.starts_with("should") => "boolean".to_string(),
+            s if s.ends_with("Count") || s.ends_with("Index") || s.ends_with("Size") => "number".to_string(),
+            s if s.ends_with("Date") || s.ends_with("Time") => "Date".to_string(),
+            s if s.ends_with("s") && !s.ends_with("ss") => "unknown[]".to_string(), // Likely plural
+            _ => "unknown".to_string(),
+        }
+    }
+    
+    /// Infer type from a value expression
+    fn infer_type_from_value(&self, value: &str) -> String {
+        let trimmed = value.trim();
+        
+        // String literals
+        if (trimmed.starts_with('"') && trimmed.ends_with('"')) ||
+           (trimmed.starts_with('\'') && trimmed.ends_with('\'')) ||
+           (trimmed.starts_with('`') && trimmed.ends_with('`')) {
+            return "string".to_string();
+        }
+        
+        // Boolean literals
+        if trimmed == "true" || trimmed == "false" {
+            return "boolean".to_string();
+        }
+        
+        // Number literals
+        if trimmed.parse::<f64>().is_ok() {
+            return "number".to_string();
+        }
+        
+        // Array literals
+        if trimmed.starts_with('[') && trimmed.ends_with(']') {
+            return "unknown[]".to_string();
+        }
+        
+        // Object literals
+        if trimmed.starts_with('{') && trimmed.ends_with('}') {
+            return "Record<string, unknown>".to_string();
+        }
+        
+        // Function calls that return known types
+        if trimmed.starts_with("new Date") {
+            return "Date".to_string();
+        }
+        
+        // Default
+        "unknown".to_string()
+    }
+
+    fn analyze_property_error(
+        &self,
+        diagnostic: &Diagnostic,
+        context: Option<&SemanticContext>,
+    ) -> DiagnosticAnalysis {
+        let identifiers = self.extract_identifiers(&diagnostic.message);
+        let _types = DiagnosticPatterns::extract_types(&diagnostic.message);
+
+        let mut analysis = self.create_analysis(
+            DiagnosticCategory::MissingProperty,
+            0.9,
+            2,
+            "Accessing a property that doesn't exist on the type".to_string(),
+            identifiers.clone(),
+        );
+
+        // Check if it might be a typo
+        if let Some(ctx) = context {
+            if let Some(class_ctx) = &ctx.class_context {
+                // Look for similar property names
+                let property_pattern = Regex::new(r"\b(\w+):\s*\w+").unwrap();
+                let mut available_properties = Vec::new();
+
+                for cap in property_pattern.captures_iter(&class_ctx.definition) {
+                    if let Some(prop) = cap.get(1) {
+                        available_properties.push(prop.as_str().to_string());
+                    }
+                }
+
+                if let Some(missing_prop) = identifiers.first() {
+                    if let Some(similar) =
+                        ComplexityScorer::find_similar_name(missing_prop, &available_properties)
+                    {
+                        self.add_insight(&mut analysis, &format!("Did you mean '{}'?", similar));
+                        analysis.fix_complexity = 1;
+                    }
+                }
+            }
+        }
+
+        // Check if it's an optional chaining issue
+        if diagnostic.message.contains("possibly 'undefined'") {
+            analysis
+                .insights
+                .push("Consider using optional chaining (?.) or null checks".to_string());
+            analysis.category = DiagnosticCategory::TypeMismatch;
+        }
+
+        analysis
+    }
+
+    fn analyze_type_mismatch(
+        &self,
+        diagnostic: &Diagnostic,
+        _context: Option<&SemanticContext>,
+    ) -> DiagnosticAnalysis {
+        let types = DiagnosticPatterns::extract_types(&diagnostic.message);
+
+        let mut analysis = DiagnosticAnalysis {
+            category: DiagnosticCategory::TypeMismatch,
+            likely_cause: "Type incompatibility between expected and actual types".to_string(),
+            confidence: 0.85,
+            related_symbols: types.clone(),
+            is_cascading: false,
+            fix_complexity: 2,
+            insights: Vec::new(),
+        };
+
+        // Analyze specific type mismatches
+        if types.len() >= 2 {
+            let expected = &types[0];
+            let actual = &types[1];
+
+            // String vs Number
+            if (expected == "number" && actual == "string")
+                || (expected == "string" && actual == "number")
+            {
+                analysis
+                    .insights
+                    .push("Consider using type conversion (Number() or String())".to_string());
+                analysis.fix_complexity = 1;
+            }
+            // Array type mismatches
+            else if expected.contains("[]") || actual.contains("[]") {
+                analysis
+                    .insights
+                    .push("Array type mismatch - check element types".to_string());
+            }
+            // Promise-related
+            else if expected.contains("Promise") || actual.contains("Promise") {
+                analysis
+                    .insights
+                    .push("Async/await mismatch - ensure proper await usage".to_string());
+                analysis.category = DiagnosticCategory::AsyncError;
+            }
+            // Union type issues
+            else if expected.contains("|") || actual.contains("|") {
+                analysis
+                    .insights
+                    .push("Union type mismatch - consider type narrowing".to_string());
+            }
+        }
+
+        // Check for null/undefined issues
+        if diagnostic.message.contains("null") || diagnostic.message.contains("undefined") {
+            analysis.insights.push(
+                "Null/undefined handling needed - use optional chaining or type guards".to_string(),
+            );
+        }
+
+        analysis
+    }
+
+    fn analyze_import_error(
+        &self,
+        diagnostic: &Diagnostic,
+        context: Option<&SemanticContext>,
+    ) -> DiagnosticAnalysis {
+        let identifiers = DiagnosticPatterns::extract_quoted_identifiers(&diagnostic.message);
+
+        let mut analysis = DiagnosticAnalysis {
+            category: DiagnosticCategory::MissingImport,
+            likely_cause: "Module or symbol not found in imports".to_string(),
+            confidence: 0.9,
+            related_symbols: identifiers.clone(),
+            is_cascading: true, // Import errors often cascade
+            fix_complexity: 1,
+            insights: Vec::new(),
+        };
+
+        // Check if it's a missing type import
+        if diagnostic.message.contains("Cannot find name") {
+            if let Some(symbol) = identifiers.first() {
+                // Common React types
+                if ["JSX", "FC", "ReactNode", "ReactElement"].contains(&symbol.as_str()) {
+                    analysis.insights.push(
+                        "Missing React type import - add: import { FC } from 'react'".to_string(),
+                    );
+                }
+                // Node types
+                else if symbol.starts_with("Node") || symbol == "Buffer" {
+                    analysis
+                        .insights
+                        .push("Missing Node.js types - install @types/node".to_string());
+                }
+                // Check if it's already imported but not in scope
+                else if let Some(ctx) = context {
+                    let imported = ctx
+                        .imports
+                        .iter()
+                        .any(|imp| imp.imported_names.contains(symbol));
+                    if imported {
+                        analysis.category = DiagnosticCategory::Unknown;
+                        analysis.likely_cause = "Symbol is imported but not in scope".to_string();
+                    }
+                }
+            }
+        }
+
+        // Module resolution errors
+        if diagnostic.message.contains("Cannot find module") {
+            analysis
+                .insights
+                .push("Check if the module is installed (npm install)".to_string());
+            analysis
+                .insights
+                .push("Verify the import path is correct".to_string());
+
+            if diagnostic.message.contains("'.css'") || diagnostic.message.contains("'.scss'") {
+                analysis
+                    .insights
+                    .push("CSS imports may need a type declaration file".to_string());
+            }
+        }
+
+        analysis
+    }
+
+    fn analyze_generic_error(
+        &self,
+        diagnostic: &Diagnostic,
+        _context: Option<&SemanticContext>,
+    ) -> DiagnosticAnalysis {
+        let types = DiagnosticPatterns::extract_types(&diagnostic.message);
+
+        let mut analysis = DiagnosticAnalysis {
+            category: DiagnosticCategory::GenericTypeError,
+            likely_cause: "Generic type parameter issue".to_string(),
+            confidence: 0.7,
+            related_symbols: types,
+            is_cascading: false,
+            fix_complexity: 3,
+            insights: Vec::new(),
+        };
+
+        if diagnostic.message.contains("Generic type") && diagnostic.message.contains("requires") {
+            analysis
+                .insights
+                .push("Generic type needs explicit type arguments".to_string());
+
+            // Extract number of required arguments
+            if let Some(cap) = Regex::new(r"requires (\d+) type argument")
+                .unwrap()
+                .captures(&diagnostic.message)
+            {
+                if let Some(num) = cap.get(1) {
+                    analysis
+                        .insights
+                        .push(format!("Add {} type arguments", num.as_str()));
+                }
+            }
+        }
+
+        analysis
+    }
+}
+
+impl LanguageAnalyzer for TypeScriptAnalyzer {
+    fn analyze_diagnostic(
+        &self,
+        diagnostic: &Diagnostic,
+        context: Option<&SemanticContext>,
+    ) -> DiagnosticAnalysis {
+        // Try to parse TypeScript error code
+        if let Some(code_str) = &diagnostic.code {
+            if let Some(ts_code) = TypeScriptErrorCode::from_str(code_str) {
+                return match ts_code {
+                    TypeScriptErrorCode::PropertyDoesNotExist
+                    | TypeScriptErrorCode::PropertyDoesNotExistWithSuggestion => {
+                        self.analyze_property_error(diagnostic, context)
+                    }
+                    TypeScriptErrorCode::TypeNotAssignable
+                    | TypeScriptErrorCode::ArgumentTypeNotAssignable => {
+                        self.analyze_type_mismatch(diagnostic, context)
+                    }
+                    TypeScriptErrorCode::CannotFindName
+                    | TypeScriptErrorCode::CannotFindNameWithSuggestion => {
+                        self.analyze_import_error(diagnostic, context)
+                    }
+                    TypeScriptErrorCode::GenericTypeRequiresArguments => {
+                        self.analyze_generic_error(diagnostic, context)
+                    }
+                };
+            }
+        }
+
+        // Fallback to message-based analysis if no code or unrecognized code
+        if diagnostic.message.contains("Property")
+            && diagnostic.message.contains("does not exist")
+        {
+            self.analyze_property_error(diagnostic, context)
+        } else if diagnostic.message.contains("Type")
+            && diagnostic.message.contains("is not assignable")
+        {
+            self.analyze_type_mismatch(diagnostic, context)
+        } else if diagnostic.message.contains("Cannot find") {
+            self.analyze_import_error(diagnostic, context)
+        } else {
+            DiagnosticAnalysis::default()
+        }
+    }
+
+    fn suggest_fix(
+        &self,
+        diagnostic: &Diagnostic,
+        context: Option<&SemanticContext>,
+    ) -> Vec<FixSuggestion> {
+        let mut suggestions = Vec::new();
+        let analysis = self.analyze_diagnostic(diagnostic, context);
+
+        match analysis.category {
+            DiagnosticCategory::MissingProperty => {
+                if let Some(insight) = analysis.insights.first() {
+                    if insight.starts_with("Did you mean") {
+                        suggestions.push(FixSuggestion {
+                            description: insight.clone(),
+                            code_snippet: None, // Would need actual code to generate
+                            confidence: 0.8,
+                            is_automatic: true,
+                            prerequisites: vec![],
+                        });
+                    }
+                }
+
+                // Suggest adding the property with proper type inference
+                if let Some(prop) = analysis.related_symbols.first() {
+                    // Try to infer the type from the diagnostic message
+                    let inferred_type = self.infer_property_type(diagnostic, prop, context);
+                    
+                    suggestions.push(FixSuggestion {
+                        description: format!("Add property '{}' to the type", prop),
+                        code_snippet: Some(format!("{}: {};", prop, inferred_type)),
+                        confidence: if inferred_type != "unknown" { 0.8 } else { 0.6 },
+                        is_automatic: false,
+                        prerequisites: vec!["Access to type definition".to_string()],
+                    });
+                }
+            }
+
+            DiagnosticCategory::TypeMismatch => {
+                if diagnostic.message.contains("string") && diagnostic.message.contains("number") {
+                    suggestions.push(FixSuggestion {
+                        description: "Convert string to number".to_string(),
+                        code_snippet: Some("Number(value)".to_string()),
+                        confidence: 0.7,
+                        is_automatic: true,
+                        prerequisites: vec![],
+                    });
+
+                    suggestions.push(FixSuggestion {
+                        description: "Convert number to string".to_string(),
+                        code_snippet: Some("value.toString()".to_string()),
+                        confidence: 0.7,
+                        is_automatic: true,
+                        prerequisites: vec![],
+                    });
+                }
+            }
+
+            DiagnosticCategory::MissingImport => {
+                if let Some(symbol) = analysis.related_symbols.first() {
+                    // Common imports
+                    let common_imports = vec![
+                        ("useState", "import { useState } from 'react';"),
+                        ("useEffect", "import { useEffect } from 'react';"),
+                        ("FC", "import { FC } from 'react';"),
+                        ("ReactNode", "import { ReactNode } from 'react';"),
+                    ];
+
+                    for (name, import) in common_imports {
+                        if symbol == name {
+                            suggestions.push(FixSuggestion {
+                                description: format!("Add {} import", name),
+                                code_snippet: Some(import.to_string()),
+                                confidence: 0.9,
+                                is_automatic: true,
+                                prerequisites: vec![],
+                            });
+                        }
+                    }
+                }
+            }
+            
+            DiagnosticCategory::GenericTypeError => {
+                // Extract generic type information from insights
+                if let Some(insight) = analysis.insights.iter().find(|i| i.contains("type arguments")) {
+                    // Try to extract the number of required arguments
+                    if let Some(num_str) = insight.split_whitespace().find(|s| s.parse::<usize>().is_ok()) {
+                        if let Ok(num) = num_str.parse::<usize>() {
+                            // Generate appropriate type parameters based on context
+                            let type_params = match num {
+                                1 => "<T>",
+                                2 => "<T, U>",
+                                3 => "<T, U, V>",
+                                _ => "<T, ...>",
+                            };
+                            
+                            suggestions.push(FixSuggestion {
+                                description: format!("Add {} type argument(s)", num),
+                                code_snippet: Some(type_params.to_string()),
+                                confidence: 0.7,
+                                is_automatic: false,
+                                prerequisites: vec!["Knowledge of expected types".to_string()],
+                            });
+                            
+                            // Suggest common patterns
+                            if diagnostic.message.contains("Array") {
+                                suggestions.push(FixSuggestion {
+                                    description: "Specify array element type".to_string(),
+                                    code_snippet: Some("<string>".to_string()),
+                                    confidence: 0.6,
+                                    is_automatic: false,
+                                    prerequisites: vec![],
+                                });
+                            } else if diagnostic.message.contains("Promise") {
+                                suggestions.push(FixSuggestion {
+                                    description: "Specify promise resolution type".to_string(),
+                                    code_snippet: Some("<void>".to_string()),
+                                    confidence: 0.6,
+                                    is_automatic: false,
+                                    prerequisites: vec![],
+                                });
+                            }
+                        }
+                    }
+                }
+            }
+
+            _ => {}
+        }
+
+        suggestions
+    }
+
+    fn extract_context_requirements(&self, diagnostic: &Diagnostic) -> ContextRequirements {
+        let mut requirements = ContextRequirements::default();
+
+        // Extract file references from the diagnostic
+        if diagnostic.message.contains("import") || diagnostic.message.contains("from") {
+            if let Some(cap) = Regex::new(r#"from ['"](.+?)['"]"#)
+                .unwrap()
+                .captures(&diagnostic.message)
+            {
+                if let Some(module) = cap.get(1) {
+                    requirements
+                        .required_files
+                        .push(format!("{}.ts", module.as_str()));
+                    requirements
+                        .required_files
+                        .push(format!("{}.tsx", module.as_str()));
+                    requirements
+                        .required_files
+                        .push(format!("{}/index.ts", module.as_str()));
+                }
+            }
+        }
+
+        // Type definition files
+        let identifiers = DiagnosticPatterns::extract_quoted_identifiers(&diagnostic.message);
+        for ident in &identifiers {
+            requirements.required_types.push(ident.clone());
+        }
+
+        // Config files
+        if diagnostic.message.contains("tsconfig")
+            || diagnostic.message.contains("Cannot find module")
+        {
+            requirements
+                .config_files
+                .push(config_files::TSCONFIG_JSON.to_string());
+            requirements
+                .config_files
+                .push(config_files::PACKAGE_JSON.to_string());
+        }
+
+        // Common dependency checks
+        if diagnostic.message.contains("@types/") {
+            if let Some(cap) = Regex::new(r"@types/(\w+)")
+                .unwrap()
+                .captures(&diagnostic.message)
+            {
+                if let Some(pkg) = cap.get(1) {
+                    requirements
+                        .dependencies
+                        .push(format!("@types/{}", pkg.as_str()));
+                }
+            }
+        }
+
+        requirements
+    }
+
+    fn language(&self) -> &str {
+        "typescript"
+    }
+}

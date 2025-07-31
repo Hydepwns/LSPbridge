@@ -3,8 +3,30 @@ use crate::core::{
     Diagnostic, DiagnosticSeverity, PrivacyFilter as PrivacyFilterTrait, PrivacyPolicy,
 };
 use anyhow::Result;
+use once_cell::sync::Lazy;
+use regex::Regex;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
+
+// Pre-compiled regex patterns for security and performance
+static DOUBLE_QUOTE_REGEX: Lazy<Regex> = Lazy::new(|| {
+    Regex::new(r#""[^"]*""#).expect("Failed to compile double quote regex")
+});
+static SINGLE_QUOTE_REGEX: Lazy<Regex> = Lazy::new(|| {
+    Regex::new(r"'[^']*'").expect("Failed to compile single quote regex")
+});
+static TEMPLATE_LITERAL_REGEX: Lazy<Regex> = Lazy::new(|| {
+    Regex::new(r"`[^`]*`").expect("Failed to compile template literal regex")
+});
+static LINE_COMMENT_REGEX: Lazy<Regex> = Lazy::new(|| {
+    Regex::new(r"//.*$").expect("Failed to compile line comment regex")
+});
+static BLOCK_COMMENT_REGEX: Lazy<Regex> = Lazy::new(|| {
+    Regex::new(r"/\*[\s\S]*?\*/").expect("Failed to compile block comment regex")
+});
+static HASH_COMMENT_REGEX: Lazy<Regex> = Lazy::new(|| {
+    Regex::new(r"#.*$").expect("Failed to compile hash comment regex")
+});
 
 pub struct PrivacyFilter {
     policy: PrivacyPolicy,
@@ -48,49 +70,72 @@ impl PrivacyFilter {
         self.workspace_filter = Some(WorkspaceFilter::new(workspace_root));
     }
 
+    /// Sanitize string literals in diagnostic messages to prevent information leakage.
+    /// 
+    /// This function replaces string literals with placeholder text while preserving
+    /// the overall structure of the message for debugging purposes.
     fn sanitize_string_literals(&self, message: &str) -> String {
-        // Remove quoted strings but preserve structure
+        if message.is_empty() {
+            return message.to_string();
+        }
+
+        // Limit input size to prevent DoS attacks
+        let message = if message.len() > 8192 {
+            &message[..8192]
+        } else {
+            message
+        };
+
         let mut result = message.to_string();
 
-        // Replace double quotes
-        result = regex::Regex::new(r#""[^"]*""#)
-            .unwrap()
+        // Replace double quotes using pre-compiled regex
+        result = DOUBLE_QUOTE_REGEX
             .replace_all(&result, r#""[STRING]""#)
             .to_string();
 
-        // Replace single quotes
-        result = regex::Regex::new(r"'[^']*'")
-            .unwrap()
+        // Replace single quotes using pre-compiled regex
+        result = SINGLE_QUOTE_REGEX
             .replace_all(&result, "'[STRING]'")
             .to_string();
 
-        // Replace template literals
-        result = regex::Regex::new(r"`[^`]*`")
-            .unwrap()
+        // Replace template literals using pre-compiled regex
+        result = TEMPLATE_LITERAL_REGEX
             .replace_all(&result, "`[STRING]`")
             .to_string();
 
         result
     }
 
+    /// Sanitize comments in diagnostic messages to prevent information leakage.
+    /// 
+    /// This function replaces comments with placeholder text while preserving
+    /// the comment structure for context.
     fn sanitize_comments(&self, message: &str) -> String {
+        if message.is_empty() {
+            return message.to_string();
+        }
+
+        // Limit input size to prevent DoS attacks
+        let message = if message.len() > 8192 {
+            &message[..8192]
+        } else {
+            message
+        };
+
         let mut result = message.to_string();
 
-        // Remove line comments
-        result = regex::Regex::new(r"//.*$")
-            .unwrap()
+        // Remove line comments using pre-compiled regex
+        result = LINE_COMMENT_REGEX
             .replace_all(&result, "// [COMMENT]")
             .to_string();
 
-        // Remove block comments
-        result = regex::Regex::new(r"/\*[\s\S]*?\*/")
-            .unwrap()
+        // Remove block comments using pre-compiled regex
+        result = BLOCK_COMMENT_REGEX
             .replace_all(&result, "/* [COMMENT] */")
             .to_string();
 
-        // Remove hash comments
-        result = regex::Regex::new(r"#.*$")
-            .unwrap()
+        // Remove hash comments using pre-compiled regex
+        result = HASH_COMMENT_REGEX
             .replace_all(&result, "# [COMMENT]")
             .to_string();
 
@@ -128,6 +173,50 @@ impl PrivacyFilter {
             .chars()
             .take(6)
             .collect()
+    }
+
+    /// Validate that a glob pattern is safe to use.
+    /// 
+    /// This prevents injection attacks through malicious glob patterns.
+    fn is_safe_glob_pattern(&self, pattern: &str) -> bool {
+        // Basic safety checks
+        if pattern.is_empty() || pattern.len() > 256 {
+            return false;
+        }
+
+        // Check for potentially dangerous patterns
+        let dangerous_patterns = [
+            "../",      // Path traversal
+            "..\\",     // Windows path traversal  
+            "/etc/",    // System directories
+            "/proc/",   // Process information
+            "/sys/",    // System information
+            "C:\\",     // Windows system root
+            "\\\\",     // UNC paths
+        ];
+
+        for dangerous in &dangerous_patterns {
+            if pattern.contains(dangerous) {
+                return false;
+            }
+        }
+
+        // Only allow alphanumeric, common path chars, and glob wildcards
+        pattern.chars().all(|c| {
+            c.is_alphanumeric() 
+                || c == '/' 
+                || c == '\\' 
+                || c == '.' 
+                || c == '_' 
+                || c == '-' 
+                || c == '*' 
+                || c == '?' 
+                || c == '[' 
+                || c == ']' 
+                || c == '{' 
+                || c == '}' 
+                || c == ','
+        })
     }
 
     fn limit_diagnostics_per_file(&self, diagnostics: Vec<Diagnostic>) -> Vec<Diagnostic> {
@@ -185,13 +274,26 @@ impl PrivacyFilterTrait for PrivacyFilter {
             }
         }
 
-        // Check against exclusion patterns
+        // Check against exclusion patterns with proper validation
         for pattern in &self.policy.exclude_patterns {
-            if glob::Pattern::new(pattern)
-                .map(|p| p.matches(&diagnostic.file))
-                .unwrap_or(false)
-            {
-                return false;
+            // Validate pattern before using it to prevent regex injection
+            if self.is_safe_glob_pattern(pattern) {
+                match glob::Pattern::new(pattern) {
+                    Ok(p) => {
+                        if p.matches(&diagnostic.file) {
+                            return false;
+                        }
+                    }
+                    Err(_) => {
+                        // Invalid pattern - log warning but continue processing
+                        eprintln!("Warning: Invalid glob pattern ignored: {}", pattern);
+                        continue;
+                    }
+                }
+            } else {
+                // Unsafe pattern - log warning and skip
+                eprintln!("Warning: Potentially unsafe glob pattern ignored: {}", pattern);
+                continue;
             }
         }
 

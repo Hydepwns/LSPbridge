@@ -1,6 +1,6 @@
 use crate::core::errors::CacheError;
 use crate::core::{Diagnostic, FileHash};
-use anyhow::Result;
+use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use sled::{Db, Tree};
 use std::path::{Path, PathBuf};
@@ -39,7 +39,8 @@ pub struct CacheConfig {
 impl Default for CacheConfig {
     fn default() -> Self {
         Self {
-            cache_dir: std::env::temp_dir().join("lsp-bridge-cache"),
+            cache_dir: crate::config::cache_dir()
+                .unwrap_or_else(|_| std::env::temp_dir().join("lsp-bridge-cache")),
             max_size_mb: 100,
             max_entries: 10000,
             ttl: Duration::from_secs(24 * 60 * 60), // 24 hours
@@ -91,10 +92,12 @@ impl CacheStats {
 
 impl PersistentCache {
     pub async fn new(config: CacheConfig) -> Result<Self> {
-        std::fs::create_dir_all(&config.cache_dir)?;
+        std::fs::create_dir_all(&config.cache_dir)
+            .with_context(|| format!("Failed to create cache directory: {:?}", config.cache_dir))?;
 
         let db_path = config.cache_dir.join("cache.db");
-        let db = sled::open(db_path)?;
+        let db = sled::open(&db_path)
+            .with_context(|| format!("Failed to open cache database at: {:?}", db_path))?;
 
         let entries_tree = db.open_tree("entries")?;
         let metadata_tree = db.open_tree("metadata")?;

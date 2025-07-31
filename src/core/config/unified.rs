@@ -7,6 +7,7 @@ use super::traits::*;
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::path::Path;
+use crate::core::SecurityConfig;
 
 /// Unified configuration structure that consolidates all LSP Bridge settings
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -40,6 +41,9 @@ pub struct UnifiedConfig {
 
     /// Feature flags for experimental features
     pub features: FeatureFlags,
+
+    /// Security configuration with secure defaults
+    pub security: super::super::security_config::SecurityConfig,
 }
 
 /// Error recovery configuration
@@ -116,7 +120,8 @@ impl Default for FeatureFlags {
 
 impl Default for UnifiedConfig {
     fn default() -> Self {
-        Self {
+        let security = super::super::security_config::SecurityConfig::new();
+        let mut config = Self {
             cache: CacheConfig::default(),
             timeouts: TimeoutConfig::default(),
             performance: PerformanceConfig::default(),
@@ -127,7 +132,12 @@ impl Default for UnifiedConfig {
             error_recovery: ErrorRecoveryConfig::default(),
             metrics: MetricsConfig::default(),
             features: FeatureFlags::default(),
-        }
+            security: security.clone(),
+        };
+        
+        // Apply security config to ensure secure defaults
+        security.apply_to_unified_config(&mut config);
+        config
     }
 }
 
@@ -135,6 +145,129 @@ impl UnifiedConfig {
     /// Create a new unified config with default values
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// Create a production-ready configuration with strict security
+    pub fn production() -> Self {
+        let security = super::super::security_config::SecurityConfig::strict();
+        let mut config = Self {
+            cache: CacheConfig::default(),
+            timeouts: TimeoutConfig::default(),
+            performance: PerformanceConfig::default(),
+            memory: MemoryConfig::default(),
+            git: GitConfig::default(),
+            analysis: AnalysisConfig::default(),
+            multi_repo: super::traits::MultiRepoConfig::default(),
+            error_recovery: ErrorRecoveryConfig::default(),
+            metrics: MetricsConfig::default(),
+            features: FeatureFlags {
+                auto_optimization: true,
+                health_monitoring: true,
+                cache_warming: true,
+                advanced_diagnostics: false,  // Conservative for production
+                experimental_features: false, // Never enable in production
+            },
+            security: security.clone(),
+        };
+        
+        // Apply strict security constraints
+        security.apply_to_unified_config(&mut config);
+        
+        // Additional production hardening
+        config.git.auto_refresh = false;  // Manual refresh in production
+        config.metrics.enable_metrics = true;  // Always monitor in production
+        config.error_recovery.enable_circuit_breaker = true;
+        
+        config
+    }
+
+    /// Create a development-friendly configuration with relaxed security
+    pub fn development() -> Self {
+        let security = super::super::security_config::SecurityConfig::development();
+        let mut config = Self {
+            cache: CacheConfig {
+                max_size_mb: 200,  // Larger cache for dev
+                cleanup_interval_minutes: 120,  // Less frequent cleanup
+                ..CacheConfig::default()
+            },
+            timeouts: TimeoutConfig {
+                processing_timeout_seconds: 300,  // Longer timeouts for debugging
+                network_timeout_seconds: 60,
+                ..TimeoutConfig::default()
+            },
+            performance: PerformanceConfig {
+                max_concurrent_files: 2000,  // Higher limits for dev
+                adaptive_scaling: true,
+                ..PerformanceConfig::default()
+            },
+            memory: MemoryConfig {
+                max_memory_mb: 1024,  // More memory for dev
+                monitoring_interval_seconds: 60,  // Less frequent monitoring
+                ..MemoryConfig::default()
+            },
+            features: FeatureFlags {
+                auto_optimization: true,
+                health_monitoring: true,
+                cache_warming: false,  // Skip cache warming in dev
+                advanced_diagnostics: true,  // Enable for debugging
+                experimental_features: true,  // Allow experimental features
+            },
+            security: security.clone(),
+            ..Self::default()
+        };
+        
+        // Apply development security settings
+        security.apply_to_unified_config(&mut config);
+        
+        config
+    }
+
+    /// Create a testing configuration optimized for CI/CD
+    pub fn testing() -> Self {
+        let security = super::super::security_config::SecurityConfig::development();
+        let config = Self {
+            cache: CacheConfig {
+                enable_persistent_cache: false,  // Memory-only cache for tests
+                max_size_mb: 50,  // Smaller cache for tests
+                ..CacheConfig::default()
+            },
+            timeouts: TimeoutConfig {
+                processing_timeout_seconds: 60,  // Shorter timeouts for tests
+                network_timeout_seconds: 15,
+                file_operation_timeout_seconds: 10,
+                analysis_timeout_seconds: 30,
+            },
+            performance: PerformanceConfig {
+                max_concurrent_files: 100,  // Lower concurrency for stable tests
+                chunk_size: 50,
+                parallel_processing: false,  // Sequential processing for predictable tests
+                ..PerformanceConfig::default()
+            },
+            memory: MemoryConfig {
+                max_memory_mb: 128,  // Minimal memory for tests
+                max_entries: 1000,
+                ..MemoryConfig::default()
+            },
+            git: GitConfig {
+                enable_git_integration: false,  // Disable git in tests
+                ..GitConfig::default()
+            },
+            features: FeatureFlags {
+                auto_optimization: false,  // Disable auto-optimization in tests
+                health_monitoring: false,  // Disable monitoring in tests
+                cache_warming: false,
+                advanced_diagnostics: false,
+                experimental_features: false,
+            },
+            metrics: MetricsConfig {
+                enable_metrics: false,  // Disable metrics collection in tests
+                ..MetricsConfig::default()
+            },
+            security,
+            ..Self::default()
+        };
+        
+        config
     }
 
     /// Load configuration from file, falling back to defaults if file doesn't exist
@@ -170,32 +303,65 @@ impl UnifiedConfig {
 
     /// Validate configuration values
     pub fn validate(&self) -> Result<()> {
-        // Memory validation
-        if self.memory.max_memory_mb < 64 {
-            anyhow::bail!("Memory limit too low: minimum 64MB");
+        // Security validation first (most critical)
+        self.security.validate().map_err(|e| anyhow::anyhow!("Security validation failed: {}", e))?;
+
+        // Memory validation with security constraints
+        let min_memory = 64.max(self.security.resource_limits.max_memory_mb / 4); // At least 1/4 of security limit
+        if self.memory.max_memory_mb < min_memory {
+            anyhow::bail!("Memory limit too low: minimum {}MB (based on security config)", min_memory);
         }
 
         if self.cache.max_size_mb > self.memory.max_memory_mb {
             anyhow::bail!("Cache size cannot exceed memory limit");
         }
 
-        // Performance validation
-        if self.performance.max_cpu_usage_percent > 100.0 {
-            anyhow::bail!("CPU usage cannot exceed 100%");
+        // Cache size must respect security limits
+        if self.cache.max_size_mb > self.security.resource_limits.max_cache_size_mb {
+            anyhow::bail!("Cache size exceeds security limit of {}MB", self.security.resource_limits.max_cache_size_mb);
+        }
+
+        // Performance validation with security constraints
+        let max_cpu = self.performance.max_cpu_usage_percent.min(self.security.resource_limits.max_cpu_percent);
+        if self.performance.max_cpu_usage_percent > max_cpu {
+            anyhow::bail!("CPU usage cannot exceed security limit of {}%", max_cpu);
         }
 
         if self.performance.max_concurrent_files == 0 {
             anyhow::bail!("Max concurrent files must be greater than 0");
         }
 
-        // Timeout validation
+        if self.performance.max_concurrent_files > self.security.resource_limits.max_concurrent_operations {
+            anyhow::bail!("Max concurrent files exceeds security limit of {}", self.security.resource_limits.max_concurrent_operations);
+        }
+
+        // File size validation
+        if self.performance.file_size_limit_mb > self.security.input_validation.max_file_size_mb {
+            anyhow::bail!("File size limit exceeds security limit of {}MB", self.security.input_validation.max_file_size_mb);
+        }
+
+        // Timeout validation with security constraints
         if self.timeouts.processing_timeout_seconds == 0 {
             anyhow::bail!("Processing timeout must be greater than 0");
+        }
+
+        if self.timeouts.processing_timeout_seconds > self.security.resource_limits.max_processing_time_seconds {
+            anyhow::bail!("Processing timeout exceeds security limit of {}s", self.security.resource_limits.max_processing_time_seconds);
+        }
+
+        // Network timeout validation
+        if self.timeouts.network_timeout_seconds > self.security.network.network_timeout_seconds {
+            anyhow::bail!("Network timeout exceeds security limit of {}s", self.security.network.network_timeout_seconds);
         }
 
         // Metrics validation
         if self.metrics.prometheus_port < 1024 || self.metrics.prometheus_port > 65535 {
             anyhow::bail!("Prometheus port must be between 1024 and 65535");
+        }
+
+        // Git integration safety
+        if self.git.scan_interval_seconds > 0 && self.git.scan_interval_seconds < 10 {
+            anyhow::bail!("Git scan interval too frequent: minimum 10 seconds to prevent resource exhaustion");
         }
 
         Ok(())
@@ -275,6 +441,7 @@ impl UnifiedConfig {
                 advanced_diagnostics: dynamic.features.advanced_diagnostics,
                 experimental_features: dynamic.features.experimental_features,
             },
+            security: SecurityConfig::default(), // Not in dynamic config
         }
     }
 
@@ -360,9 +527,9 @@ mod tests {
         let config = UnifiedConfig::new();
         assert!(config.validate().is_ok());
 
-        // Test default values
+        // Test default values (after security constraints are applied)
         assert_eq!(config.cache.max_size_mb, 100);
-        assert_eq!(config.performance.max_concurrent_files, 1000);
+        assert_eq!(config.performance.max_concurrent_files, 50); // Limited by security config
         assert_eq!(config.memory.max_memory_mb, 256);
     }
 
@@ -372,15 +539,15 @@ mod tests {
         let config_file = temp_dir.path().join("test_config.toml");
 
         let mut config = UnifiedConfig::new();
-        config.cache.max_size_mb = 200;
-        config.performance.max_concurrent_files = 500;
+        config.cache.max_size_mb = 100; // Within security limit of 128MB
+        config.performance.max_concurrent_files = 40; // Within security limit of 50
 
         config.save(&config_file).await?;
         assert!(config_file.exists());
 
         let loaded_config = UnifiedConfig::load(&config_file).await?;
-        assert_eq!(loaded_config.cache.max_size_mb, 200);
-        assert_eq!(loaded_config.performance.max_concurrent_files, 500);
+        assert_eq!(loaded_config.cache.max_size_mb, 100);
+        assert_eq!(loaded_config.performance.max_concurrent_files, 40);
 
         Ok(())
     }

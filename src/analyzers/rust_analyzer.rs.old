@@ -1,0 +1,540 @@
+use super::base::{AnalyzerBase, DiagnosticPatterns};
+use super::error_codes::RustErrorCode;
+use super::language_analyzer::{
+    ContextRequirements, DiagnosticAnalysis, DiagnosticCategory, FixSuggestion, LanguageAnalyzer,
+};
+use crate::core::constants::{config_files, error_patterns};
+use crate::core::{Diagnostic, SemanticContext};
+use regex::Regex;
+
+pub struct RustAnalyzer;
+
+impl AnalyzerBase for RustAnalyzer {}
+
+impl RustAnalyzer {
+    pub fn new() -> Self {
+        Self
+    }
+
+    fn analyze_borrow_error(
+        &self,
+        diagnostic: &Diagnostic,
+        context: Option<&SemanticContext>,
+    ) -> DiagnosticAnalysis {
+        let identifiers = self.extract_identifiers(&diagnostic.message);
+
+        let mut analysis = self.create_analysis(
+            DiagnosticCategory::BorrowChecker,
+            0.9,
+            3,
+            "Borrow checker violation".to_string(),
+            identifiers.clone(),
+        );
+        self.mark_cascading(&mut analysis); // Borrow errors often cascade
+
+        // Analyze specific borrow patterns
+        if diagnostic
+            .message
+            .contains(error_patterns::CANNOT_BORROW_MUTABLE)
+            && diagnostic.message.contains("as mutable more than once")
+        {
+            analysis.likely_cause = "Multiple mutable borrows of the same value".to_string();
+            self.add_insight(
+                &mut analysis,
+                "Consider using RefCell for interior mutability",
+            );
+            self.add_insight(
+                &mut analysis,
+                "Or restructure code to avoid overlapping mutable borrows",
+            );
+            analysis.fix_complexity = 4;
+        } else if diagnostic
+            .message
+            .contains(error_patterns::CANNOT_BORROW_MUTABLE)
+            && diagnostic
+                .message
+                .contains("as mutable because it is also borrowed as immutable")
+        {
+            analysis.likely_cause = "Mutable borrow while immutable borrow exists".to_string();
+            self.add_insight(
+                &mut analysis,
+                "Ensure immutable borrows go out of scope before mutable borrow",
+            );
+            self.add_insight(&mut analysis, "Consider cloning if the data is small");
+        } else if diagnostic
+            .message
+            .contains(error_patterns::DOES_NOT_LIVE_LONG_ENOUGH)
+        {
+            analysis.category = DiagnosticCategory::LifetimeError;
+            analysis.likely_cause = "Value dropped while still borrowed".to_string();
+            self.add_insight(&mut analysis, "Extend the lifetime of the value");
+            self.add_insight(&mut analysis, "Or reduce the lifetime of the borrow");
+        }
+
+        // Check if it's in a loop
+        if let Some(ctx) = context {
+            if let Some(func) = &ctx.function_context {
+                if func.body.contains("for") || func.body.contains("while") {
+                    self.add_insight(
+                        &mut analysis,
+                        "Borrow errors in loops often require collecting results first",
+                    );
+                }
+            }
+        }
+
+        analysis
+    }
+
+    fn analyze_lifetime_error(
+        &self,
+        diagnostic: &Diagnostic,
+        _context: Option<&SemanticContext>,
+    ) -> DiagnosticAnalysis {
+        let identifiers = self.extract_identifiers(&diagnostic.message);
+        let mut analysis = self.create_analysis(
+            DiagnosticCategory::LifetimeError,
+            0.85,
+            4,
+            "Lifetime constraint violation".to_string(),
+            identifiers,
+        );
+
+        if diagnostic.message.contains("lifetime parameters")
+            || diagnostic.message.contains("explicit lifetime")
+        {
+            self.add_insight(&mut analysis, "Add explicit lifetime parameters");
+            self.add_insight(&mut analysis, "Example: fn foo<'a>(x: &'a str) -> &'a str");
+        } else if diagnostic.message.contains("outlives") {
+            self.add_insight(
+                &mut analysis,
+                "Add lifetime bounds to ensure proper outlives relationships",
+            );
+            self.add_insight(&mut analysis, "Example: where 'a: 'b");
+        } else if diagnostic.message.contains("static lifetime") {
+            self.add_insight(
+                &mut analysis,
+                "Consider if 'static lifetime is really needed",
+            );
+            self.add_insight(&mut analysis, "Or use Arc/Rc for shared ownership");
+        }
+
+        // Extract lifetime names
+        let lifetime_pattern = Regex::new(r"'(\w+)").unwrap();
+        let mut lifetimes = Vec::with_capacity(3); // Most lifetime errors involve 1-3 lifetimes
+        for cap in lifetime_pattern.captures_iter(&diagnostic.message) {
+            if let Some(lt) = cap.get(1) {
+                lifetimes.push(lt.as_str().to_string());
+            }
+        }
+        if !lifetimes.is_empty() {
+            analysis
+                .insights
+                .push(format!("Lifetimes involved: {}", lifetimes.join(", ")));
+        }
+
+        analysis
+    }
+
+    fn analyze_move_error(
+        &self,
+        diagnostic: &Diagnostic,
+        context: Option<&SemanticContext>,
+    ) -> DiagnosticAnalysis {
+        let identifiers = DiagnosticPatterns::extract_quoted_identifiers(&diagnostic.message);
+
+        let mut analysis = DiagnosticAnalysis {
+            category: DiagnosticCategory::MoveError,
+            likely_cause: "Value moved when it should be borrowed or copied".to_string(),
+            confidence: 0.9,
+            related_symbols: identifiers.clone(),
+            is_cascading: true,
+            fix_complexity: 2,
+            insights: Vec::with_capacity(4), // Move errors typically have 2-4 insights
+        };
+
+        if diagnostic.message.contains("cannot move out of") {
+            if diagnostic.message.contains("borrowed content")
+                || diagnostic.message.contains("behind a shared reference")
+            {
+                analysis
+                    .insights
+                    .push("Cannot move from behind a reference".to_string());
+                analysis
+                    .insights
+                    .push("Consider cloning the value".to_string());
+                analysis
+                    .insights
+                    .push("Or use pattern matching with ref".to_string());
+            } else if diagnostic.message.contains("index") {
+                analysis
+                    .insights
+                    .push("Cannot move out of indexed content".to_string());
+                analysis
+                    .insights
+                    .push("Use remove() to take ownership from Vec".to_string());
+                analysis.insights.push("Or clone the value".to_string());
+            }
+        } else if diagnostic.message.contains("use of moved value") {
+            analysis
+                .insights
+                .push("Value was moved in previous operation".to_string());
+
+            // Check if type implements Copy
+            if let Some(_ctx) = context {
+                // Simple heuristic - primitive types are usually Copy
+                if identifiers.iter().any(|id| {
+                    ["i32", "u32", "i64", "u64", "f32", "f64", "bool", "char"]
+                        .contains(&id.as_str())
+                }) {
+                    analysis
+                        .insights
+                        .push("Consider implementing Copy trait for this type".to_string());
+                    analysis.fix_complexity = 1;
+                }
+            }
+
+            analysis
+                .insights
+                .push("Clone the value before moving".to_string());
+            analysis
+                .insights
+                .push("Or restructure to avoid multiple uses".to_string());
+        }
+
+        analysis
+    }
+
+    fn analyze_type_error(
+        &self,
+        diagnostic: &Diagnostic,
+        _context: Option<&SemanticContext>,
+    ) -> DiagnosticAnalysis {
+        let types = DiagnosticPatterns::extract_types(&diagnostic.message);
+
+        let mut analysis = DiagnosticAnalysis {
+            category: DiagnosticCategory::TypeMismatch,
+            likely_cause: "Type mismatch between expected and found types".to_string(),
+            confidence: 0.85,
+            related_symbols: types.clone(),
+            is_cascading: false,
+            fix_complexity: 2,
+            insights: Vec::with_capacity(3), // Type errors typically have 1-3 insights
+        };
+
+        if diagnostic.message.contains("expected") && diagnostic.message.contains("found") {
+            // Extract expected and found types
+            if let (Some(expected_cap), Some(found_cap)) = (
+                Regex::new(r"expected (?:type )?`([^`]+)`")
+                    .unwrap()
+                    .captures(&diagnostic.message),
+                Regex::new(r"found (?:type )?`([^`]+)`")
+                    .unwrap()
+                    .captures(&diagnostic.message),
+            ) {
+                if let (Some(expected), Some(found)) = (expected_cap.get(1), found_cap.get(1)) {
+                    let expected_type = expected.as_str();
+                    let found_type = found.as_str();
+
+                    // Reference vs value
+                    if expected_type.starts_with('&') && !found_type.starts_with('&') {
+                        analysis
+                            .insights
+                            .push("Expected a reference, found a value - add &".to_string());
+                        analysis.fix_complexity = 1;
+                    } else if !expected_type.starts_with('&') && found_type.starts_with('&') {
+                        analysis.insights.push(
+                            "Expected a value, found a reference - dereference with *".to_string(),
+                        );
+                        analysis.fix_complexity = 1;
+                    }
+                    // Result/Option handling
+                    else if expected_type.contains("Result") && !found_type.contains("Result") {
+                        analysis.insights.push("Wrap value in Ok()".to_string());
+                    } else if expected_type.contains("Option") && !found_type.contains("Option") {
+                        analysis.insights.push("Wrap value in Some()".to_string());
+                    } else if found_type.contains("Result") && !expected_type.contains("Result") {
+                        analysis
+                            .insights
+                            .push("Handle Result with ? or unwrap()".to_string());
+                        analysis.category = DiagnosticCategory::AsyncError; // Might be async related
+                    }
+                    // String types
+                    else if expected_type == "&str" && found_type == "String" {
+                        analysis
+                            .insights
+                            .push("Convert String to &str with .as_str() or &".to_string());
+                        analysis.fix_complexity = 1;
+                    } else if expected_type == "String" && found_type == "&str" {
+                        analysis
+                            .insights
+                            .push("Convert &str to String with .to_string()".to_string());
+                        analysis.fix_complexity = 1;
+                    }
+                }
+            }
+        }
+
+        analysis
+    }
+
+    fn analyze_trait_error(
+        &self,
+        diagnostic: &Diagnostic,
+        _context: Option<&SemanticContext>,
+    ) -> DiagnosticAnalysis {
+        let identifiers = DiagnosticPatterns::extract_quoted_identifiers(&diagnostic.message);
+
+        let mut analysis = DiagnosticAnalysis {
+            category: DiagnosticCategory::TypeMismatch,
+            likely_cause: "Required trait not implemented".to_string(),
+            confidence: 0.8,
+            related_symbols: identifiers,
+            is_cascading: false,
+            fix_complexity: 3,
+            insights: Vec::with_capacity(3), // Trait errors typically have 2-3 insights
+        };
+
+        // Common trait errors
+        if diagnostic.message.contains("doesn't implement")
+            || diagnostic.message.contains("not implemented")
+        {
+            if diagnostic.message.contains("Display") {
+                analysis
+                    .insights
+                    .push("Implement Display trait or use Debug with {:?}".to_string());
+            } else if diagnostic.message.contains("Clone") {
+                analysis
+                    .insights
+                    .push("Derive Clone or implement it manually".to_string());
+                analysis.insights.push("#[derive(Clone)]".to_string());
+            } else if diagnostic.message.contains("Copy") {
+                analysis
+                    .insights
+                    .push("Derive Copy (requires Clone too)".to_string());
+                analysis.insights.push("#[derive(Copy, Clone)]".to_string());
+            } else if diagnostic.message.contains("Send") || diagnostic.message.contains("Sync") {
+                analysis
+                    .insights
+                    .push("Type contains non-Send/Sync fields".to_string());
+                analysis
+                    .insights
+                    .push("Consider using Arc<Mutex<T>> for thread safety".to_string());
+                analysis.fix_complexity = 4;
+            }
+        }
+
+        analysis
+    }
+}
+
+impl LanguageAnalyzer for RustAnalyzer {
+    fn analyze_diagnostic(
+        &self,
+        diagnostic: &Diagnostic,
+        context: Option<&SemanticContext>,
+    ) -> DiagnosticAnalysis {
+        // Try to parse Rust error code
+        if let Some(code_str) = &diagnostic.code {
+            if let Some(rust_code) = RustErrorCode::from_str(code_str) {
+                return if rust_code.is_borrow_error() {
+                    self.analyze_borrow_error(diagnostic, context)
+                } else if rust_code.is_lifetime_error() {
+                    self.analyze_lifetime_error(diagnostic, context)
+                } else if rust_code.is_move_error() {
+                    self.analyze_move_error(diagnostic, context)
+                } else if rust_code == RustErrorCode::MismatchedTypes {
+                    self.analyze_type_error(diagnostic, context)
+                } else if rust_code == RustErrorCode::TraitBoundNotSatisfied {
+                    self.analyze_trait_error(diagnostic, context)
+                } else {
+                    // Unknown Rust error code, fall through to message-based analysis
+                    DiagnosticAnalysis::default()
+                };
+            }
+        }
+
+        // Fallback to message-based analysis
+        if diagnostic.message.contains("borrow") {
+            self.analyze_borrow_error(diagnostic, context)
+        } else if diagnostic.message.contains("lifetime")
+            || diagnostic.message.contains("does not live long enough")
+        {
+            self.analyze_lifetime_error(diagnostic, context)
+        } else if diagnostic.message.contains("move") || diagnostic.message.contains("moved") {
+            self.analyze_move_error(diagnostic, context)
+        } else if diagnostic.message.contains("expected") && diagnostic.message.contains("found") {
+            self.analyze_type_error(diagnostic, context)
+        } else if diagnostic.message.contains("trait")
+            && diagnostic.message.contains("not implemented")
+        {
+            self.analyze_trait_error(diagnostic, context)
+        } else {
+            DiagnosticAnalysis::default()
+        }
+    }
+
+    fn suggest_fix(
+        &self,
+        diagnostic: &Diagnostic,
+        context: Option<&SemanticContext>,
+    ) -> Vec<FixSuggestion> {
+        let mut suggestions = Vec::with_capacity(3); // Most diagnostics have 1-3 fix suggestions
+        let analysis = self.analyze_diagnostic(diagnostic, context);
+
+        match analysis.category {
+            DiagnosticCategory::BorrowChecker => {
+                if diagnostic.message.contains("mutable more than once") {
+                    suggestions.push(FixSuggestion {
+                        description: "Use RefCell for interior mutability".to_string(),
+                        code_snippet: Some(
+                            "use std::cell::RefCell;\nlet x = RefCell::new(value);".to_string(),
+                        ),
+                        confidence: 0.7,
+                        is_automatic: false,
+                        prerequisites: vec!["Single-threaded context".to_string()],
+                    });
+
+                    suggestions.push(FixSuggestion {
+                        description: "Clone the data if it's small".to_string(),
+                        code_snippet: Some("let cloned = original.clone();".to_string()),
+                        confidence: 0.6,
+                        is_automatic: false,
+                        prerequisites: vec!["Type implements Clone".to_string()],
+                    });
+                }
+            }
+
+            DiagnosticCategory::MoveError => {
+                if diagnostic.message.contains("use of moved value") {
+                    suggestions.push(FixSuggestion {
+                        description: "Clone before moving".to_string(),
+                        code_snippet: Some(".clone()".to_string()),
+                        confidence: 0.8,
+                        is_automatic: true,
+                        prerequisites: vec!["Type implements Clone".to_string()],
+                    });
+                }
+
+                if diagnostic.message.contains("cannot move out of index") {
+                    suggestions.push(FixSuggestion {
+                        description: "Use Vec::remove to take ownership".to_string(),
+                        code_snippet: Some("vec.remove(index)".to_string()),
+                        confidence: 0.7,
+                        is_automatic: false,
+                        prerequisites: vec!["Mutable access to Vec".to_string()],
+                    });
+                }
+            }
+
+            DiagnosticCategory::TypeMismatch => {
+                // String conversions
+                if diagnostic.message.contains("expected `&str`")
+                    && diagnostic.message.contains("found `String`")
+                {
+                    suggestions.push(FixSuggestion {
+                        description: "Convert String to &str".to_string(),
+                        code_snippet: Some("&value".to_string()),
+                        confidence: 0.9,
+                        is_automatic: true,
+                        prerequisites: vec![],
+                    });
+                } else if diagnostic.message.contains("expected `String`")
+                    && diagnostic.message.contains("found `&str`")
+                {
+                    suggestions.push(FixSuggestion {
+                        description: "Convert &str to String".to_string(),
+                        code_snippet: Some(".to_string()".to_string()),
+                        confidence: 0.9,
+                        is_automatic: true,
+                        prerequisites: vec![],
+                    });
+                }
+
+                // Result/Option handling
+                if diagnostic.message.contains("expected enum `Result`") {
+                    suggestions.push(FixSuggestion {
+                        description: "Wrap in Ok()".to_string(),
+                        code_snippet: Some("Ok(value)".to_string()),
+                        confidence: 0.8,
+                        is_automatic: true,
+                        prerequisites: vec![],
+                    });
+                }
+            }
+
+            DiagnosticCategory::LifetimeError => {
+                suggestions.push(FixSuggestion {
+                    description: "Add explicit lifetime annotations".to_string(),
+                    code_snippet: Some("fn example<'a>(x: &'a str) -> &'a str { x }".to_string()),
+                    confidence: 0.5,
+                    is_automatic: false,
+                    prerequisites: vec!["Understanding of lifetime rules".to_string()],
+                });
+            }
+
+            _ => {}
+        }
+
+        suggestions
+    }
+
+    fn extract_context_requirements(&self, diagnostic: &Diagnostic) -> ContextRequirements {
+        let mut requirements = ContextRequirements::default();
+
+        // Extract symbols that need context
+        let identifiers = DiagnosticPatterns::extract_quoted_identifiers(&diagnostic.message);
+        requirements.required_symbols.extend(identifiers);
+
+        // For borrow/lifetime errors, we need the full function
+        if let Some(code_str) = &diagnostic.code {
+            if let Some(rust_code) = RustErrorCode::from_str(code_str) {
+                if rust_code.is_borrow_error() || rust_code.is_lifetime_error() {
+                    requirements
+                        .required_symbols
+                        .push("_full_function_context".to_string());
+                }
+            }
+        }
+
+        // For trait errors, we need trait definitions
+        if diagnostic.message.contains("trait") {
+            if let Some(trait_match) = Regex::new(r"trait `([^`]+)`")
+                .unwrap()
+                .captures(&diagnostic.message)
+            {
+                if let Some(trait_name) = trait_match.get(1) {
+                    requirements
+                        .required_types
+                        .push(trait_name.as_str().to_string());
+                }
+            }
+        }
+
+        // Config files
+        if diagnostic.message.contains("Cargo.toml") {
+            requirements
+                .config_files
+                .push(config_files::CARGO_TOML.to_string());
+        }
+
+        // External crates
+        if diagnostic
+            .message
+            .contains("use of unstable library feature")
+        {
+            requirements
+                .config_files
+                .push(config_files::CARGO_TOML.to_string());
+            requirements
+                .dependencies
+                .push("Check crate features".to_string());
+        }
+
+        requirements
+    }
+
+    fn language(&self) -> &str {
+        "rust"
+    }
+}

@@ -1,0 +1,5 @@
+// Re-export everything from the config module
+pub use config::*;
+
+// Module definition
+mod config;

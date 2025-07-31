@@ -1,0 +1,5 @@
+// Re-export everything from the collaboration module
+pub use collaboration::*;
+
+// Module definition
+mod collaboration;

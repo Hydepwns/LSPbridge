@@ -12,8 +12,9 @@ pub mod registry;
 
 pub use aggregator::{AggregatedDiagnostic, DiagnosticAggregator};
 pub use collaboration::{DiagnosticAssignment, TeamDatabase, TeamMember};
-pub use cross_repo::{CrossRepoAnalyzer, TypeReference};
-pub use monorepo::{MonorepoDetector, SubprojectInfo, WorkspaceLayout};
+pub use cross_repo::CrossRepoAnalyzer;
+pub use cross_repo::types::TypeReference;
+pub use monorepo::{MonorepoDetector, SubprojectInfo, WorkspaceLayout, WorkspaceType};
 pub use registry::{RepositoryInfo, RepositoryRegistry, RepositoryRelation};
 
 use crate::core::config::ConfigDefaults;
@@ -151,7 +152,8 @@ impl MultiRepoContext {
     /// Detect monorepo structure
     pub async fn detect_monorepo(&self, root: &PathBuf) -> Result<Option<WorkspaceLayout>> {
         if self.config.auto_detect_monorepo {
-            MonorepoDetector::detect(root).await
+            let detector = MonorepoDetector::new();
+            detector.detect(root).await
         } else {
             Ok(None)
         }

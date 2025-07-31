@@ -129,6 +129,153 @@ pub enum ParseError {
         line: u32,
         message: String,
     },
+
+    // Query language parsing errors
+    #[error("Unexpected token: expected {expected}, found '{found}' at line {line}, column {column}")]
+    UnexpectedToken {
+        expected: String,
+        found: String,
+        line: usize,
+        column: usize,
+    },
+
+    #[error("Unexpected character '{character}' at line {line}, column {column}")]
+    UnexpectedCharacter {
+        character: char,
+        line: usize,
+        column: usize,
+    },
+
+    #[error("Unterminated string literal at line {line}, column {column}")]
+    UnterminatedString {
+        line: usize,
+        column: usize,
+    },
+
+    #[error("Invalid number '{value}' at line {line}, column {column}")]
+    InvalidNumber {
+        value: String,
+        line: usize,
+        column: usize,
+    },
+
+    #[error("Invalid time format '{value}' at line {line}, column {column}")]
+    InvalidTimeFormat {
+        value: String,
+        line: usize,
+        column: usize,
+    },
+
+    #[error("Unknown field '{field}'. Available fields: {available_fields:?}")]
+    UnknownField {
+        field: String,
+        available_fields: Vec<String>,
+    },
+
+    #[error("Invalid aggregation: {function} on field '{field}' - {reason}")]
+    InvalidAggregation {
+        function: String,
+        field: String,
+        reason: String,
+    },
+
+    #[error("Missing GROUP BY clause: {reason}")]
+    MissingGroupBy {
+        reason: String,
+    },
+
+    #[error("Conflicting time range specification: {reason}")]
+    ConflictingTimeRange {
+        reason: String,
+    },
+
+    #[error("Invalid time range: {reason}")]
+    InvalidTimeRange {
+        reason: String,
+    },
+
+    #[error("Invalid LIMIT value {limit}: {reason}")]
+    InvalidLimit {
+        limit: u32,
+        reason: String,
+    },
+
+    #[error("Incompatible data source '{data_source}' with field '{field}': {reason}")]
+    IncompatibleDataSource {
+        data_source: String,
+        field: String,
+        reason: String,
+    },
+
+    // Additional query parsing errors for the grammar module
+    #[error("Unknown table '{table}' at line {line}, column {column}")]
+    UnknownTable {
+        table: String,
+        line: usize,
+        column: usize,
+    },
+
+    #[error("Invalid severity '{severity}' at line {line}, column {column}")]
+    InvalidSeverity {
+        severity: String,
+        line: usize,
+        column: usize,
+    },
+
+    #[error("Invalid datetime '{value}' at line {line}, column {column}")]
+    InvalidDateTime {
+        value: String,
+        line: usize,
+        column: usize,
+    },
+
+    #[error("Invalid boolean '{value}' at line {line}, column {column}")]
+    InvalidBoolean {
+        value: String,
+        line: usize,
+        column: usize,
+    },
+
+    #[error("Empty GROUP BY clause")]
+    EmptyGroupBy,
+
+    #[error("Empty ORDER BY clause")]
+    EmptyOrderBy,
+
+    #[error("Empty pattern for {filter_type} filter at line {line}, column {column}")]
+    EmptyPattern {
+        filter_type: String,
+        line: usize,
+        column: usize,
+    },
+
+    #[error("Empty field name at line {line}, column {column}")]
+    EmptyFieldName {
+        line: usize,
+        column: usize,
+    },
+
+    #[error("Invalid relative time: {value} {unit} - {reason}")]
+    InvalidRelativeTime {
+        value: u32,
+        unit: String,
+        reason: String,
+    },
+
+
+
+    #[error("Incompatible clauses: {clause1} cannot be used with {clause2} - {reason}")]
+    IncompatibleClauses {
+        clause1: String,
+        clause2: String,
+        reason: String,
+    },
+
+    #[error("Invalid ORDER BY field '{field}': not in SELECT list. Available fields: {available_fields:?}")]
+    InvalidOrderByField {
+        field: String,
+        available_fields: Vec<String>,
+    },
 }
 
 /// Processing errors for analyzers and processors
@@ -212,6 +359,12 @@ pub enum DatabaseError {
         query: String,
         #[source]
         source: rusqlite::Error,
+    },
+
+    #[error("Connection error in {operation}: {details:?}")]
+    Connection {
+        operation: String,
+        details: Option<String>,
     },
 }
 

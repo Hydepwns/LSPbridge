@@ -280,18 +280,17 @@ mod tests {
     use super::*;
     use tempfile::NamedTempFile;
     use tokio;
-    // use crate::tests::common::test_helpers; // TODO: Fix test helpers import
+    use crate::core::types::{Position, Range};
 
     #[tokio::test]
-    #[ignore] // TODO: Fix test helpers
     async fn test_apply_simple_fix() {
         let engine = FixApplicationEngine::new();
 
         // Create a temporary file with test content
         let initial_content = "let x: number = \"string\";\n";
-        // let temp_file = test_helpers::create_test_file(initial_content).await.unwrap(); // TODO: Fix test helpers
-        let temp_file = std::fs::File::create("/tmp/test_fix.ts").unwrap();
-        let file_path = std::path::PathBuf::from("/tmp/test_fix.ts");
+        let temp_file = NamedTempFile::new().unwrap();
+        let file_path = temp_file.path().to_path_buf();
+        fs::write(&file_path, initial_content).await.unwrap();
 
         // Create fix
         let edit = FixEdit {

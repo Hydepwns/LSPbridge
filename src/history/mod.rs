@@ -16,6 +16,49 @@ pub use visualization::{
     generate_html_dashboard, VisualizationData, VisualizationExporter, VisualizationLibrary,
 };
 
+use clap::Subcommand;
+use std::path::PathBuf;
+
+/// Actions for managing diagnostic history
+#[derive(Debug, Clone, Subcommand)]
+pub enum HistoryAction {
+    /// View diagnostic trends over time
+    Trends {
+        /// Number of hours to analyze
+        #[arg(short = 'h', long, default_value = "24")]
+        hours: u64,
+        /// Output format
+        #[arg(short, long, value_enum, default_value = "markdown")]
+        format: crate::cli::OutputFormat,
+    },
+    /// Find diagnostic hot spots
+    HotSpots {
+        /// Maximum number of hot spots to show
+        #[arg(short, long, default_value = "10")]
+        limit: usize,
+        /// Output format
+        #[arg(short, long, value_enum, default_value = "markdown")]
+        format: crate::cli::OutputFormat,
+    },
+    /// Get history for a specific file
+    File {
+        /// File path to analyze
+        path: PathBuf,
+        /// Number of hours to analyze
+        #[arg(short = 'h', long, default_value = "24")]
+        hours: u64,
+        /// Output format
+        #[arg(short, long, value_enum, default_value = "markdown")]
+        format: crate::cli::OutputFormat,
+    },
+    /// Clean old history data
+    Clean {
+        /// Delete data older than this many days
+        #[arg(long, default_value = "30")]
+        older_than_days: u32,
+    },
+}
+
 use crate::core::{Diagnostic, FileHash};
 use anyhow::Result;
 use std::path::Path;
@@ -135,6 +178,13 @@ impl HistoryManager {
             .get_time_series_data(start, end, interval)
             .await
             .map_err(|e| anyhow::anyhow!(e))
+    }
+
+    /// Clean old data from the history storage
+    pub async fn clean_old_data(&self, cutoff_date: chrono::DateTime<chrono::Utc>) -> Result<usize> {
+        // For now, we don't have a specific method in HistoryStorage for this
+        // This would typically be implemented in the storage layer
+        Ok(0)
     }
 
     /// Export visualization data

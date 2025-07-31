@@ -2,6 +2,7 @@ pub mod async_processor;
 pub mod config;
 pub mod constants;
 pub mod context_ranking;
+pub mod database_pool;
 pub mod dependency_analyzer;
 pub mod diagnostic_grouping;
 pub mod diagnostic_prioritization;
@@ -12,7 +13,10 @@ pub mod io_utils;
 pub mod macros;
 pub mod memory_manager;
 pub mod metrics;
+pub mod performance_optimizer;
 pub mod persistent_cache;
+pub mod rate_limiter;
+pub mod security_config;
 pub mod semantic_context;
 pub mod traits;
 pub mod types;
@@ -54,7 +58,7 @@ pub use async_processor::{
     AsyncDiagnosticProcessor, ProcessedDiagnostic, ProcessingStats as AsyncProcessingStats,
 };
 pub use dynamic_config::{
-    ConfigChange, ConfigChangeNotifier, ConfigChangeReceiver, DynamicConfig, DynamicConfigManager,
+    ConfigChange, DynamicConfig, DynamicConfigManager,
 };
 pub use errors::{
     AnalysisError, CacheError, ConfigError, DatabaseError, ExportError, FileError,
@@ -68,4 +72,18 @@ pub use health_dashboard::{
 };
 pub use simple_enhanced_processor::{
     PerformanceSummary as SimplePerformanceSummary, SimpleEnhancedConfig, SimpleEnhancedProcessor,
+};
+pub use rate_limiter::{
+    extract_client_id, RateLimiter, RateLimitConfig, RateLimitResult, RateLimitStats,
+};
+pub use database_pool::{
+    DatabasePool, DatabasePoolBuilder, PoolConfig, PooledConnection, PoolStats, ConnectionStats,
+};
+pub use security_config::{
+    SecurityConfig, RateLimitSecurityConfig, InputValidationConfig, PrivacySecurityConfig,
+    FileAccessConfig, NetworkSecurityConfig, ResourceLimitsConfig, AuditConfig, PrivacyLevel,
+};
+pub use performance_optimizer::{
+    OptimizedFileScanner, FileMetadata, CacheStats, LazyLoader, BatchFileProcessor,
+    FileContentIterator,
 };
