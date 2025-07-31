@@ -31,8 +31,9 @@ async fn test_config_loading_from_existing_file() -> Result<()> {
     let temp_dir = TempDir::new()?;
     let config_file = temp_dir.path().join("existing_config.toml");
 
-    // Create a custom config file
-    let custom_config = r#"
+    // Create a custom config file with platform-agnostic paths
+    let cache_dir = temp_dir.path().join("test_cache");
+    let custom_config = format!(r#"
 [processing]
 parallel_processing = false
 chunk_size = 50
@@ -43,7 +44,7 @@ timeout_seconds = 15
 [cache]
 enable_persistent_cache = false
 enable_memory_cache = true
-cache_dir = "/tmp/test_cache"
+cache_dir = "{}"
 max_size_mb = 50
 max_entries = 1000
 ttl_hours = 12
@@ -95,7 +96,7 @@ health_check_interval_minutes = 10
 gc_threshold_mb = 256
 max_cpu_usage_percent = 75.0
 adaptive_scaling = false
-"#;
+"#, cache_dir.display());
 
     fs::write(&config_file, custom_config)?;
 
@@ -272,8 +273,9 @@ async fn test_config_file_reload() -> Result<()> {
 
     let manager = DynamicConfigManager::new(config_file.clone()).await?;
 
-    // Manually modify the config file
-    let modified_config = r#"
+    // Manually modify the config file with platform-agnostic paths
+    let cache_dir = temp_dir.path().join("test_cache");
+    let modified_config = format!(r#"
 [processing]
 parallel_processing = false
 chunk_size = 75
@@ -284,7 +286,7 @@ timeout_seconds = 15
 [cache]
 enable_persistent_cache = true
 enable_memory_cache = true
-cache_dir = "/tmp/test_cache"
+cache_dir = "{}"
 max_size_mb = 100
 max_entries = 10000
 ttl_hours = 24
@@ -336,7 +338,7 @@ health_check_interval_minutes = 5
 gc_threshold_mb = 512
 max_cpu_usage_percent = 80.0
 adaptive_scaling = true
-"#;
+"#, cache_dir.display());
 
     fs::write(&config_file, modified_config)?;
 

@@ -32,7 +32,13 @@
       "Bash(mv:*)",
       "Bash(RUST_BACKTRACE=1 cargo test --lib ai_training::synthetic::tests::test_gradient_dataset -- --nocapture)",
       "Bash(RUST_BACKTRACE=1 cargo test test_semantic_context_extraction_rust -- --nocapture)",
-      "Bash(sed:*)"
+      "Bash(sed:*)",
+      "Bash(rustc:*)",
+      "Bash(./test-maven-parsing)",
+      "Bash(./test_type_inference)",
+      "Bash(rg:*)",
+      "Bash(-exec rustc --edition=2021 --crate-type=lib {} --extern anyhow --extern serde --extern serde_json --extern tokio --extern async_trait --extern tracing --extern toml --extern tempfile --allow warnings)",
+      "Bash(git rm:*)"
     ],
     "deny": []
   }

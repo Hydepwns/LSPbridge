@@ -203,8 +203,8 @@ async fn test_context_ranking_and_budget() -> Result<()> {
     let context = SemanticContext {
         function_context: Some(FunctionContext {
             name: "processData".to_string(),
-            signature: "function processData(data: any[]): ProcessedData[]".to_string(),
-            body: "function processData(data: any[]): ProcessedData[] {\n  return data.map(item => ({ ...item, processed: true }));\n}".to_string(),
+            signature: "function processData(data: DataItem[]): ProcessedData[]".to_string(),
+            body: "function processData(data: DataItem[]): ProcessedData[] {\n  return data.map(item => ({ ...item, processed: true }));\n}".to_string(),
             start_line: 10,
             end_line: 12,
         }),
@@ -349,7 +349,7 @@ interface User {
             end: Position { line: 21, character: 9 },
         },
         severity: DiagnosticSeverity::Error,
-        message: "Property 'message' is missing in type '{ data: any; status: number; }' but required in type 'ApiResponse<User[]>'.".to_string(),
+        message: "Property 'message' is missing in type '{ data: User[]; status: number; }' but required in type 'ApiResponse<User[]>'.".to_string(),
         code: None,
         source: "typescript".to_string(),
         tags: None,

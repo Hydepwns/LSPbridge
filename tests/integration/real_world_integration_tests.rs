@@ -43,12 +43,12 @@ async fn test_typescript_react_component_context_extraction() -> Result<()> {
 
     // Check that React imports are captured
     let has_react_import = ranked_context.ranked_elements.iter()
-        .any(|e| matches!(&e.content, ContextContent::Import(import) ifimport.imported_names.contains(&"React".to_string())));
+        .any(|e| matches!(&e.content, ContextContent::Import(import) if import.imported_names.contains(&"React".to_string())));
     assert!(has_react_import, "Should capture React import");
 
     // Check that User interface is captured
     let has_user_type = ranked_context.ranked_elements.iter()
-        .any(|e| matches!(&e.content, ContextContent::Import(import) ifimport.imported_names.contains(&"User".to_string())));
+        .any(|e| matches!(&e.content, ContextContent::Import(import) if import.imported_names.contains(&"User".to_string())));
     assert!(has_user_type, "Should capture User type import");
 
     // Check that the function containing the error is captured
@@ -203,7 +203,7 @@ async fn test_python_data_processing_context_extraction() -> Result<()> {
             },
         },
         severity: DiagnosticSeverity::Error,
-        message: "Incompatible return value type (got \"bool\", expected \"Dict[Any, Any]\")"
+        message: "Incompatible return value type (got \"bool\", expected \"Dict[str, Union[str, int]]\")"
             .to_string(),
         code: None,
         source: "mypy".to_string(),
@@ -349,7 +349,7 @@ async fn test_cross_language_context_comparison() -> Result<()> {
             },
         },
         severity: DiagnosticSeverity::Error,
-        message: "Incompatible return value type (got \"bool\", expected \"Dict[Any, Any]\")"
+        message: "Incompatible return value type (got \"bool\", expected \"Dict[str, Union[str, int]]\")"
             .to_string(),
         code: None,
         source: "mypy".to_string(),

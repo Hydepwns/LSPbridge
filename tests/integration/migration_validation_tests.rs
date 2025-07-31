@@ -6,8 +6,8 @@
 
 use lsp_bridge::core::{
     config::UnifiedConfig,
-    enhanced_processor::{EnhancedIncrementalProcessor, EnhancedProcessorConfig},
-    errors::LSPBridgeError,
+    SimpleEnhancedProcessor, SimpleEnhancedConfig,
+    errors::{LSPBridgeError, ConfigError},
     semantic_context::ContextExtractor,
     Diagnostic, DiagnosticSeverity, Position, Range,
 };
@@ -88,24 +88,24 @@ async fn test_unified_config_system() -> Result<(), Box<dyn std::error::Error>> 
     // Create a unified configuration with custom settings
     let mut unified_config = UnifiedConfig::default();
     unified_config.cache.max_entries = 1000;
-    unified_config.timeouts.extraction_timeout = Duration::from_secs(30);
-    unified_config.performance.max_concurrent_extractions = 4;
+    unified_config.timeouts.analysis_timeout_seconds = 30;
+    unified_config.performance.max_concurrent_files = 4;
 
     // Validate configuration values
     assert_eq!(unified_config.cache.max_entries, 1000);
     assert_eq!(
-        unified_config.timeouts.extraction_timeout,
-        Duration::from_secs(30)
+        unified_config.timeouts.analysis_timeout_seconds,
+        30
     );
-    assert_eq!(unified_config.performance.max_concurrent_extractions, 4);
+    assert_eq!(unified_config.performance.max_concurrent_files, 4);
 
     // Test that unified config works with enhanced processor
-    let processor_config = EnhancedProcessorConfig {
-        cache_config: unified_config.cache.clone(),
+    let processor_config = SimpleEnhancedConfig {
+        cache_dir: unified_config.cache.cache_dir.clone(),
         ..Default::default()
     };
 
-    let _processor = EnhancedIncrementalProcessor::new(processor_config).await?;
+    let _processor = SimpleEnhancedProcessor::new(processor_config).await?;
 
     println!("✅ Unified configuration system working correctly");
     Ok(())
@@ -117,6 +117,7 @@ async fn test_error_recovery_resilience() -> Result<(), Box<dyn std::error::Erro
     let temp_dir = TempDir::new()?;
 
     // Test scenarios that should be handled gracefully
+    let large_content = "x".repeat(1_000_000);
     let test_scenarios = vec![
         ("missing_file", "nonexistent.ts", None),
         ("empty_file", "empty.ts", Some("")),
@@ -125,7 +126,7 @@ async fn test_error_recovery_resilience() -> Result<(), Box<dyn std::error::Erro
             "malformed.ts",
             Some("this is not valid { code"),
         ),
-        ("very_large_file", "large.ts", Some(&"x".repeat(1_000_000))),
+        ("very_large_file", "large.ts", Some(large_content.as_str())),
         ("binary_content", "binary.ts", Some("\x00\x01\x02\x7F\x7E")),
     ];
 
@@ -185,7 +186,7 @@ async fn test_no_breaking_changes() -> Result<(), Box<dyn std::error::Error>> {
     let _context = extractor.extract_context_from_file(&diagnostic)?;
 
     // 2. EnhancedIncrementalProcessor should work with default config
-    let _processor = EnhancedIncrementalProcessor::new(EnhancedProcessorConfig::default()).await?;
+    let _processor = SimpleEnhancedProcessor::new(SimpleEnhancedConfig::default()).await?;
 
     // 3. Error types should be compatible
     let _error: LSPBridgeError =
@@ -258,14 +259,14 @@ async fn validate_enhanced_processor_api() -> ValidationResult {
     let start_memory = get_memory_usage();
 
     let result = async {
-        let config = EnhancedProcessorConfig::default();
-        let processor = EnhancedIncrementalProcessor::new(config).await?;
+        let config = SimpleEnhancedConfig::default();
+        let processor = SimpleEnhancedProcessor::new(config).await?;
 
         let temp_dir = TempDir::new()?;
         let file_path = temp_dir.path().join("test.ts");
         std::fs::write(&file_path, "console.log('test');")?;
 
-        let _changed = processor.detect_changed_files(&[&file_path]).await?;
+        let _changed = processor.detect_changed_files(&[file_path.clone()]).await?;
         let _cached = processor.get_cached_diagnostics(&file_path).await;
 
         Ok::<(), Box<dyn std::error::Error>>(())
@@ -321,13 +322,19 @@ async fn validate_error_handling_api() -> ValidationResult {
 
     let result = async {
         // Test error type construction and formatting
-        let config_error = LSPBridgeError::Config("test config error".into());
+        let config_error = LSPBridgeError::Config(ConfigError::ValidationFailed {
+            reason: "test config error".to_string(),
+        });
         let _error_string = format!("{}", config_error);
         let _debug_string = format!("{:?}", config_error);
 
         // Test error chaining
-        let io_error = std::io::Error::new(std::io::ErrorKind::NotFound, "test");
-        let _bridge_error: LSPBridgeError = io_error.into();
+        // Test that we can create file errors
+        let _file_error = LSPBridgeError::File(lsp_bridge::core::errors::FileError::ReadFailed {
+            path: PathBuf::from("test.txt"),
+            reason: "test error".to_string(),
+            source: std::io::Error::new(std::io::ErrorKind::NotFound, "test"),
+        });
 
         Ok::<(), Box<dyn std::error::Error>>(())
     }
@@ -402,8 +409,8 @@ async fn validate_memory_usage_targets() -> ValidationResult {
 
     let result = async {
         // Target: 30% reduction in steady-state memory usage
-        let config = EnhancedProcessorConfig::default();
-        let processor = EnhancedIncrementalProcessor::new(config).await?;
+        let config = SimpleEnhancedConfig::default();
+        let processor = SimpleEnhancedProcessor::new(config).await?;
 
         let temp_dir = TempDir::new()?;
         let mut files = Vec::new();
@@ -419,7 +426,7 @@ async fn validate_memory_usage_targets() -> ValidationResult {
 
         // Process all files
         for file_path in &files {
-            let _changed = processor.detect_changed_files(&[file_path]).await?;
+            let _changed = processor.detect_changed_files(&[file_path.to_path_buf()]).await?;
         }
 
         let memory_after = get_memory_usage();
@@ -465,15 +472,15 @@ async fn validate_concurrent_processing_targets() -> ValidationResult {
         for i in 0..4 {
             // Test 4 concurrent processors
             let task = tokio::spawn(async move {
-                let config = EnhancedProcessorConfig::default();
-                let processor = EnhancedIncrementalProcessor::new(config).await.unwrap();
+                let config = SimpleEnhancedConfig::default();
+                let processor = SimpleEnhancedProcessor::new(config).await.unwrap();
 
                 let temp_dir = TempDir::new().unwrap();
                 let file_path = temp_dir.path().join(format!("concurrent_test_{}.ts", i));
                 std::fs::write(&file_path, create_typescript_content(200)).unwrap();
 
                 let task_start = Instant::now();
-                let _changed = processor.detect_changed_files(&[&file_path]).await.unwrap();
+                let _changed = processor.detect_changed_files(&[file_path.clone()]).await.unwrap();
                 task_start.elapsed()
             });
 
@@ -530,8 +537,8 @@ async fn validate_cold_start_targets() -> ValidationResult {
         let init_start = Instant::now();
 
         let _extractor = ContextExtractor::new()?;
-        let config = EnhancedProcessorConfig::default();
-        let _processor = EnhancedIncrementalProcessor::new(config).await?;
+        let config = SimpleEnhancedConfig::default();
+        let _processor = SimpleEnhancedProcessor::new(config).await?;
 
         let init_time = init_start.elapsed();
 

@@ -7,6 +7,18 @@ pub mod health_dashboard_tests;
 pub mod migration_validation_tests;
 pub mod real_world_integration_tests;
 pub mod semantic_context_tests;
+pub mod multi_repo_integration_tests;
+pub mod workflow_tests;
+
+// Mock LSP server for testing
+#[path = "../mock_lsp_server.rs"]
+pub mod mock_lsp_server;
+
+// LSP test helpers
+pub mod lsp_test_helpers;
+
+// Simple LSP tests that work with current codebase
+pub mod simple_lsp_tests;
 
 // Include AI training tests
 #[path = "../ai_training/mod.rs"]

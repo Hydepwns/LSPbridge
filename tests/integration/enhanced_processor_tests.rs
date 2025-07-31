@@ -1,8 +1,10 @@
 use anyhow::Result;
 use lsp_bridge::core::{
-    Diagnostic, DiagnosticSeverity, SimpleEnhancedConfig, SimpleEnhancedProcessor,
+    types::{Diagnostic, DiagnosticSeverity, Position, Range},
+    SimpleEnhancedConfig, SimpleEnhancedProcessor,
 };
 use std::collections::HashMap;
+use std::fs;
 use std::path::PathBuf;
 use std::sync::Arc;
 use tempfile::TempDir;
@@ -12,16 +14,16 @@ fn create_test_diagnostic(file: &str, line: u32, message: &str) -> Diagnostic {
     Diagnostic {
         id: Uuid::new_v4().to_string(),
         file: file.to_string(),
-        range: lsp_bridge::core::Range {
-            start: lsp_bridge::core::Position { line, character: 1 },
-            end: lsp_bridge::core::Position { line, character: 1 },
+        range: Range {
+            start: Position { line, character: 1 },
+            end: Position { line, character: 1 },
         },
         severity: DiagnosticSeverity::Error,
         message: message.to_string(),
         code: Some("TEST001".to_string()),
         source: "test".to_string(),
         related_information: None,
-        tags: Some(Vec::new()),
+        tags: None,
         data: None,
     }
 }
@@ -90,9 +92,10 @@ async fn test_file_change_detection() -> Result<()> {
     assert!(changed_files.is_empty());
 
     // Test with non-existent files
+    // Use temp directory for non-existent file paths
     let files = vec![
-        PathBuf::from("/tmp/nonexistent1.rs"),
-        PathBuf::from("/tmp/nonexistent2.rs"),
+        temp_dir.path().join("nonexistent1.rs"),
+        temp_dir.path().join("nonexistent2.rs"),
     ];
     let changed_files = processor.detect_changed_files(&files).await?;
     // All non-existent files should be considered "changed" (new)
@@ -153,10 +156,13 @@ async fn test_incremental_processing() -> Result<()> {
 
     let processor = SimpleEnhancedProcessor::new(config).await?;
 
-    let files = vec![
-        PathBuf::from("/tmp/file1.rs"),
-        PathBuf::from("/tmp/file2.rs"),
-    ];
+    // Create test files in temp directory
+    let test_file1 = temp_dir.path().join("file1.rs");
+    let test_file2 = temp_dir.path().join("file2.rs");
+    std::fs::write(&test_file1, "// test content 1")?;
+    std::fs::write(&test_file2, "// test content 2")?;
+    
+    let files = vec![test_file1.clone(), test_file2.clone()];
 
     // Mock processor function that returns diagnostics
     let processor_fn = |files: &[PathBuf]| -> Result<HashMap<PathBuf, Vec<Diagnostic>>> {
@@ -416,7 +422,10 @@ async fn test_error_recovery_integration() -> Result<()> {
     let processor = SimpleEnhancedProcessor::new(config).await?;
 
     // Test that error recovery doesn't interfere with normal operations
-    let files = vec![PathBuf::from("/tmp/error_recovery_test.rs")];
+    // Create test file in temp directory
+    let test_file = temp_dir.path().join("error_recovery_test.rs");
+    std::fs::write(&test_file, "// error recovery test")?;
+    let files = vec![test_file];
 
     let processor_fn = |_files: &[PathBuf]| -> Result<HashMap<PathBuf, Vec<Diagnostic>>> {
         // Return empty result (no errors)
