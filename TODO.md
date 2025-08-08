@@ -107,27 +107,46 @@
 5. ✅ Added Docker support and automated releases
 6. ✅ Configured code coverage reporting
 
-## Remaining Tasks (Non-Critical)
+## Prioritized Improvements (by Value/Effort Ratio)
+
+### ⚠️ Integration Test Status (Investigated)
+Attempted to enable 11 ignored integration tests but found:
+- **workflow_tests.rs** (4 tests): API incompatibilities with capture/export/query modules
+- **multi_repo_integration_tests.rs** (7 tests): Missing imports and API changes needed
+- Tests compile but need significant refactoring to match current API
+- Estimated effort increased from 2 hrs to 4-6 hrs due to API alignment needs
+
+## Task Priority List
+
+### 🎯 High Value, Low Effort (Do First)
+1. [~] **Fix Integration Tests** - 11 tests need API updates (4-6 hrs)
+   - Import issues with ExportFormat, PrivacyConfig
+   - QueryEngine API changes needed
+   - Language enum not exposed from project module
+   - CollaborationManager needs proper imports
+   - Mock LSP server references need fixing
+2. [ ] **Add CLI Command Examples** - Quick start guide with common use cases (3 hrs)
+3. [ ] **Fix Connection Pool Semaphore** - Resolve early permit release issue (4 hrs)
+4. [ ] **Generate API Documentation** - Auto-generate with cargo doc (2 hrs)
+
+### 💡 Medium Value, Low-Medium Effort
+5. [ ] **Add Monorepo Detection** - Support Lerna, Nx, Rush, Yarn workspaces (6 hrs)
+6. [ ] **Setup Benchmark Dashboard** - CI regression detection with criterion (3 hrs)
+7. [ ] **Wire Privacy Policy Integration** - Connect to capture service (8 hrs)
+8. [ ] **Enable Quick-Fix Verification** - Automated fix validation (10 hrs)
+
+### 📝 Lower Priority (Higher Effort)
+9. [ ] Multi-repository features - Complex implementation (2-3 weeks)
+10. [ ] Web UI dashboard - Nice to have but not critical (1-2 weeks)
+11. [ ] ML-based fix suggestions - Requires training data and models (3-4 weeks)
+12. [ ] Additional build systems (Bazel, Buck) - Low demand currently (1 week each)
 
 ### Known TODOs in Codebase (19 items)
 - Multi-repo features (11 TODOs) - placeholders for future multi-repository support
-- Connection pool improvements (2 TODOs) - semaphore design optimization
+- Connection pool improvements (2 TODOs) - semaphore design optimization  
 - Project detection (3 TODOs) - monorepo/workspace detection logic
 - Cross-repo synchronization (2 TODOs) - future caching and sync features
 - Privacy policy integration (1 TODO) - capture service enhancement
-
-### Documentation & Examples
-- [ ] Complete API documentation for all public interfaces
-- [ ] Add usage examples for each CLI command
-- [ ] Create integration guides for popular IDEs
-- [ ] Write performance tuning guide
-
-### Future Enhancements (v0.4.0+)
-- [ ] Property-based tests for parsers
-- [ ] Web UI for diagnostic visualization
-- [ ] ML-based fix suggestions
-- [ ] Additional build system support (Bazel, Buck)
-- [ ] Video tutorials and expanded documentation
 
 ## Release Readiness Checklist ✅
 

@@ -4,15 +4,13 @@ use lsp_bridge::{
     multi_repo::{
         DiagnosticAggregator,
         CrossRepoAnalyzer,
-        // TODO: Enable when collaboration is implemented
-        // TeamDatabase, TeamMember,
+        collaboration::{CollaborationManager, TeamDatabase, TeamMember},
         RepositoryInfo, RepositoryRegistry,
-        // TODO: Enable when MultiRepoContext is implemented
-        // MultiRepoContext,
+        MultiRepoContext,
     },
     core::{
         Diagnostic, DiagnosticSeverity, Position, Range,
-        // types::{DiagnosticTag, RelatedInformation},
+        DiagnosticTag,
     },
 };
 use std::path::{Path, PathBuf};
@@ -39,7 +37,7 @@ fn create_repo_diagnostic(repo_name: &str, file: &str, line: u32, message: &str)
 }
 
 #[tokio::test]
-#[ignore] // TODO: Re-enable when multi_repo modules are available
+#[ignore] // Need to fix API compatibility
 async fn test_repository_registry() -> Result<(), Box<dyn std::error::Error>> {
     let temp_dir = TempDir::new()?;
     let registry_path = temp_dir.path().join("registry.json");
@@ -91,7 +89,7 @@ async fn test_repository_registry() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 #[tokio::test]
-#[ignore] // TODO: Re-enable when multi_repo modules are available
+#[ignore] // Need to fix API compatibility
 async fn test_diagnostic_aggregation() -> Result<(), Box<dyn std::error::Error>> {
     let aggregator = DiagnosticAggregator::new(2); // Max 2 concurrent repos
     
@@ -126,7 +124,7 @@ async fn test_diagnostic_aggregation() -> Result<(), Box<dyn std::error::Error>>
 }
 
 #[tokio::test]
-#[ignore] // TODO: Re-enable when multi_repo modules are available
+#[ignore] // Need to fix API compatibility
 async fn test_cross_repo_analysis() -> Result<(), Box<dyn std::error::Error>> {
     let analyzer = CrossRepoAnalyzer::new(true); // Enable type sharing
     
@@ -156,7 +154,7 @@ async fn test_cross_repo_analysis() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 #[tokio::test]
-#[ignore] // TODO: Re-enable when multi_repo modules are available
+#[ignore] // Need to fix CollaborationManager imports
 async fn test_collaboration_manager() -> Result<(), Box<dyn std::error::Error>> {
     let temp_dir = TempDir::new()?;
     let db_path = temp_dir.path().join("team.db");
@@ -208,7 +206,7 @@ async fn test_collaboration_manager() -> Result<(), Box<dyn std::error::Error>> 
 }
 
 #[tokio::test]
-#[ignore] // TODO: Re-enable when multi_repo modules are available
+#[ignore] // Need to fix MultiRepoContext API
 async fn test_multi_repo_context_integration() -> Result<(), Box<dyn std::error::Error>> {
     let temp_dir = TempDir::new()?;
     let config = lsp_bridge::core::config::UnifiedConfig {
@@ -258,7 +256,7 @@ async fn test_multi_repo_context_integration() -> Result<(), Box<dyn std::error:
 }
 
 #[tokio::test]
-#[ignore] // TODO: Re-enable when project structure module is available
+#[ignore] // Need to implement monorepo detection
 async fn test_monorepo_detection() -> Result<(), Box<dyn std::error::Error>> {
     let temp_dir = TempDir::new()?;
     
@@ -298,7 +296,7 @@ async fn test_monorepo_detection() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 #[tokio::test]
-#[ignore] // TODO: Re-enable when multi_repo modules are available
+#[ignore] // Need to fix type resolution API
 async fn test_cross_repo_type_resolution() -> Result<(), Box<dyn std::error::Error>> {
     let analyzer = CrossRepoAnalyzer::new(true);
     
