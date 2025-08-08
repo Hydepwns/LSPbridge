@@ -109,6 +109,18 @@ lspbridge query -q "SELECT file, COUNT(*) FROM diagnostics GROUP BY file" --form
 
 📖 **[See EXAMPLES.md](EXAMPLES.md) for comprehensive usage examples and advanced workflows.**
 
+## Documentation
+
+**API Documentation**: Full API docs with examples and implementation details:
+```bash
+# Generate and open comprehensive documentation
+cargo doc --no-deps --document-private-items --open
+
+# View online at: target/doc/lsp_bridge/index.html
+```
+
+**Comprehensive Examples**: See [EXAMPLES.md](EXAMPLES.md) for 50+ practical use cases.
+
 ## Architecture
 
 ```
@@ -142,135 +154,3 @@ cargo test --test integration
 - Performance optimizations active
 
 **Ready for Production**: All core features implemented and tested
-
-## Example Output
-
-### Real TypeScript Diagnostics
-```json
-// Input from typescript-language-server
-{
-  "uri": "file:///workspace/src/api/handler.ts",
-  "diagnostics": [
-    {
-      "range": {
-        "start": {"line": 45, "character": 12},
-        "end": {"line": 45, "character": 24}
-      },
-      "severity": 1,
-      "code": 2339,
-      "source": "typescript",
-      "message": "Property 'userId' does not exist on type 'Request'."
-    }
-  ]
-}
-```
-
-### Claude-Optimized Output
-```markdown
-# Diagnostics Report - my-api-project
-
-Generated: 2024-01-15 10:30:00 UTC
-Privacy Level: Standard (paths anonymized)
-
-## Summary
-- **Errors**: 3
-- **Warnings**: 5
-- **Info**: 2
-- **Affected Files**: 4
-
-## Critical Errors (Fix First)
-
-### src/api/handler.ts:45:12
-**TypeScript (TS2339)**: Property 'userId' does not exist on type 'Request'.
-```typescript
-44 | export async function handleAuth(req: Request, res: Response) {
-45 |   const user = req.userId; // ← Error here
-46 |   if (!user) {
-```
-**Suggested Fix**: Add userId to Request type or use `req.user.id`
-
-### src/database/connection.ts:23:8
-**TypeScript (TS2345)**: Argument of type 'string | undefined' is not assignable to parameter of type 'string'.
-```typescript
-22 | const config = getConfig();
-23 | connect(config.DATABASE_URL); // ← Error: DATABASE_URL might be undefined
-24 |
-```
-**Suggested Fix**: Add null check or use non-null assertion
-
-## Warnings
-
-### src/utils/logger.ts:15:10
-**ESLint (no-console)**: Unexpected console statement.
-```typescript
-14 | export function debugLog(message: string) {
-15 |   console.log(`[DEBUG] ${message}`); // ← Warning
-16 | }
-```
-
-## Context for AI Analysis
-
-This diagnostic report contains:
-- 3 TypeScript errors (2 type errors, 1 missing property)
-- 5 ESLint warnings (3 no-console, 2 unused-vars)
-- Most errors are in the API layer (handler.ts, middleware.ts)
-- Consider adding proper TypeScript types for Express Request extensions
-```
-
-### JSON Output Example
-```json
-{
-  "summary": {
-    "total": 10,
-    "errors": 3,
-    "warnings": 5,
-    "info": 2,
-    "bySource": {
-      "typescript": 3,
-      "eslint": 5,
-      "prettier": 2
-    }
-  },
-  "diagnostics": [
-    {
-      "file": "src/api/handler.ts",
-      "line": 45,
-      "column": 12,
-      "severity": "error",
-      "code": "TS2339",
-      "message": "Property 'userId' does not exist on type 'Request'.",
-      "source": "typescript",
-      "context": {
-        "before": "export async function handleAuth(req: Request, res: Response) {",
-        "line": "  const user = req.userId;",
-        "after": "  if (!user) {"
-      }
-    }
-  ]
-}
-```
-
-The core architecture is complete and functional. The system successfully processes diagnostics and exports them in AI-optimized formats.
-
-## Configuration
-
-Configuration is managed via `lspbridge.toml`. See [Configuration Guide](docs/CONFIGURATION.md) for complete reference.
-
-### Quick Start
-
-```toml
-# lspbridge.toml
-[processing]
-parallel_processing = true
-chunk_size = 500
-
-[cache]
-max_size_mb = 500
-
-[git]
-respect_gitignore = true
-```
-
-Use profiles for different environments: `LSP_BRIDGE_PROFILE=production lspbridge export`
-
-For detailed configuration options, monitoring setup, and security features, see the [full documentation](docs/).
