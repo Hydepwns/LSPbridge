@@ -29,7 +29,18 @@
       "Bash(src/query/repl.rs )",
       "Bash(src/quick_fix/verification.rs )",
       "Bash(src/core/config/unified.rs )",
-      "Bash(src/core/memory_manager/eviction.rs)"
+      "Bash(src/core/memory_manager/eviction.rs)",
+      "Bash(cargo run:*)",
+      "Bash(mv:*)",
+      "Bash(cargo doc:*)",
+      "Bash(env)",
+      "Bash(RUST_BACKTRACE=1 cargo test --test integration dynamic_config_tests::test_config_loading_from_existing_file -- --nocapture)",
+      "Bash(RUST_BACKTRACE=1 cargo test --test integration dynamic_config_tests::test_config_multiple_updates -- --nocapture)",
+      "Bash(RUST_BACKTRACE=1 cargo test --test integration test_diagnostic_query_workflow -- --nocapture)",
+      "Bash(RUST_BACKTRACE=1 cargo test --test integration test_rust_analyzer_with_mock_fallback -- --nocapture)",
+      "Bash(git push:*)",
+      "Bash(chmod:*)",
+      "Bash(./scripts/test-benchmark-dashboard.sh:*)"
     ],
     "deny": []
   }
