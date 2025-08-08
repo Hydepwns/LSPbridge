@@ -13,6 +13,15 @@ use tracing::info;
 
 use super::types::{CacheEntry, CacheStatistics, EvictionPolicy, MemoryConfig};
 
+/// Enum to represent eviction strategy choice
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum EvictionChoice {
+    LRU,
+    LFU,
+    SizeWeighted,
+    AgeWeighted,
+}
+
 /// Trait for eviction strategies
 pub trait EvictionStrategy<K, V>
 where
@@ -20,6 +29,7 @@ where
     V: Clone,
 {
     /// Evict entries to meet target size and count constraints
+    #[allow(async_fn_in_trait)]
     async fn evict(
         &self,
         entries: &RwLock<HashMap<K, CacheEntry<V>>>,
@@ -248,6 +258,12 @@ pub struct AdaptiveEviction {
     age_weighted: AgeWeightedEviction,
 }
 
+impl Default for AdaptiveEviction {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl AdaptiveEviction {
     /// Create a new adaptive eviction strategy
     pub fn new() -> Self {
@@ -260,31 +276,27 @@ impl AdaptiveEviction {
     }
 
     /// Choose the best eviction strategy based on current conditions
-    pub fn choose_strategy<K, V>(
+    pub fn choose_strategy(
         &self,
         memory_pressure: f64,
         hit_rate: f64,
         average_entry_size: usize,
-    ) -> &dyn EvictionStrategy<K, V>
-    where
-        K: Clone + Eq + Hash + 'static,
-        V: Clone + 'static,
-    {
+    ) -> EvictionChoice {
         if memory_pressure > 0.9 {
             // Very high memory pressure: prioritize freeing space quickly
-            &self.size_weighted as &dyn EvictionStrategy<K, V>
+            EvictionChoice::SizeWeighted
         } else if hit_rate < 0.5 {
             // Low hit rate: items aren't being reused much, use LRU
-            &self.lru as &dyn EvictionStrategy<K, V>
+            EvictionChoice::LRU
         } else if hit_rate > 0.8 {
             // High hit rate: keep frequently used items
-            &self.lfu as &dyn EvictionStrategy<K, V>
+            EvictionChoice::LFU
         } else if average_entry_size > 1024 * 1024 {
             // Large average entry size: size-weighted to free more memory per eviction
-            &self.size_weighted as &dyn EvictionStrategy<K, V>
+            EvictionChoice::SizeWeighted
         } else {
             // Balanced approach: age-weighted eviction
-            &self.age_weighted as &dyn EvictionStrategy<K, V>
+            EvictionChoice::AgeWeighted
         }
     }
 }
@@ -315,24 +327,59 @@ where
             1024 // Default 1KB
         };
 
-        let strategy = self.choose_strategy::<K, V>(memory_pressure, hit_rate, average_entry_size);
+        let strategy_choice = self.choose_strategy(memory_pressure, hit_rate, average_entry_size);
         
         info!(
             "Adaptive eviction choosing strategy based on: memory_pressure={:.2}, hit_rate={:.2}, avg_size={}",
             memory_pressure, hit_rate, average_entry_size
         );
 
-        strategy
-            .evict(
-                entries,
-                access_order,
-                current_size,
-                current_entries,
-                target_size,
-                target_count,
-                batch_size,
-            )
-            .await
+        match strategy_choice {
+            EvictionChoice::LRU => {
+                self.lru.evict(
+                    entries,
+                    access_order,
+                    current_size,
+                    current_entries,
+                    target_size,
+                    target_count,
+                    batch_size,
+                ).await
+            },
+            EvictionChoice::LFU => {
+                self.lfu.evict(
+                    entries,
+                    access_order,
+                    current_size,
+                    current_entries,
+                    target_size,
+                    target_count,
+                    batch_size,
+                ).await
+            },
+            EvictionChoice::SizeWeighted => {
+                self.size_weighted.evict(
+                    entries,
+                    access_order,
+                    current_size,
+                    current_entries,
+                    target_size,
+                    target_count,
+                    batch_size,
+                ).await
+            },
+            EvictionChoice::AgeWeighted => {
+                self.age_weighted.evict(
+                    entries,
+                    access_order,
+                    current_size,
+                    current_entries,
+                    target_size,
+                    target_count,
+                    batch_size,
+                ).await
+            },
+        }
     }
 }
 
@@ -359,19 +406,9 @@ impl EvictionManager {
         }
     }
 
-    /// Get the configured eviction strategy
-    pub fn get_strategy<K, V>(&self) -> &dyn EvictionStrategy<K, V>
-    where
-        K: Clone + Eq + Hash + 'static,
-        V: Clone + 'static,
-    {
-        match self.config.eviction_policy {
-            EvictionPolicy::LRU => &self.lru as &dyn EvictionStrategy<K, V>,
-            EvictionPolicy::LFU => &self.lfu as &dyn EvictionStrategy<K, V>,
-            EvictionPolicy::SizeWeighted => &self.size_weighted as &dyn EvictionStrategy<K, V>,
-            EvictionPolicy::AgeWeighted => &self.age_weighted as &dyn EvictionStrategy<K, V>,
-            EvictionPolicy::Adaptive => &self.adaptive as &dyn EvictionStrategy<K, V>,
-        }
+    /// Get the configured eviction policy
+    pub fn get_strategy_policy(&self) -> &EvictionPolicy {
+        &self.config.eviction_policy
     }
 
     /// Perform eviction if needed
@@ -405,21 +442,64 @@ impl EvictionManager {
         let target_size = (self.config.max_memory_mb * 1024 * 1024) as f64 * self.config.low_water_mark;
         let target_count = self.config.max_entries as f64 * self.config.low_water_mark;
 
-        // Get the appropriate strategy
-        let strategy = self.get_strategy::<K, V>();
-
-        // Perform eviction
-        let evicted = strategy
-            .evict(
-                entries,
-                access_order,
-                current_size,
-                current_entries,
-                target_size,
-                target_count,
-                self.config.eviction_batch_size,
-            )
-            .await?;
+        // Perform eviction based on policy
+        let evicted = match self.config.eviction_policy {
+            EvictionPolicy::LRU => {
+                self.lru.evict(
+                    entries,
+                    access_order,
+                    current_size,
+                    current_entries,
+                    target_size,
+                    target_count,
+                    self.config.eviction_batch_size,
+                ).await?
+            },
+            EvictionPolicy::LFU => {
+                self.lfu.evict(
+                    entries,
+                    access_order,
+                    current_size,
+                    current_entries,
+                    target_size,
+                    target_count,
+                    self.config.eviction_batch_size,
+                ).await?
+            },
+            EvictionPolicy::SizeWeighted => {
+                self.size_weighted.evict(
+                    entries,
+                    access_order,
+                    current_size,
+                    current_entries,
+                    target_size,
+                    target_count,
+                    self.config.eviction_batch_size,
+                ).await?
+            },
+            EvictionPolicy::AgeWeighted => {
+                self.age_weighted.evict(
+                    entries,
+                    access_order,
+                    current_size,
+                    current_entries,
+                    target_size,
+                    target_count,
+                    self.config.eviction_batch_size,
+                ).await?
+            },
+            EvictionPolicy::Adaptive => {
+                self.adaptive.evict(
+                    entries,
+                    access_order,
+                    current_size,
+                    current_entries,
+                    target_size,
+                    target_count,
+                    self.config.eviction_batch_size,
+                ).await?
+            },
+        };
 
         // Update statistics
         if evicted > 0 {
@@ -493,18 +573,23 @@ mod tests {
         let adaptive = AdaptiveEviction::new();
 
         // High memory pressure - should choose size-weighted
-        let strategy = adaptive.choose_strategy::<String, String>(0.95, 0.7, 1024);
-        // We can't directly test the type, but we can verify it's not null
-        assert!(!std::ptr::eq(
-            strategy as *const dyn EvictionStrategy<String, String>,
-            std::ptr::null()
-        ));
+        let choice = adaptive.choose_strategy(0.95, 0.7, 1024);
+        assert_eq!(choice, EvictionChoice::SizeWeighted);
 
         // Low hit rate - should choose LRU
-        let strategy = adaptive.choose_strategy::<String, String>(0.5, 0.3, 1024);
-        assert!(!std::ptr::eq(
-            strategy as *const dyn EvictionStrategy<String, String>,
-            std::ptr::null()
-        ));
+        let choice = adaptive.choose_strategy(0.5, 0.3, 1024);
+        assert_eq!(choice, EvictionChoice::LRU);
+
+        // High hit rate - should choose LFU
+        let choice = adaptive.choose_strategy(0.7, 0.85, 512);
+        assert_eq!(choice, EvictionChoice::LFU);
+
+        // Large entries - should choose size-weighted
+        let choice = adaptive.choose_strategy(0.6, 0.6, 2 * 1024 * 1024);
+        assert_eq!(choice, EvictionChoice::SizeWeighted);
+
+        // Default case - should choose age-weighted
+        let choice = adaptive.choose_strategy(0.7, 0.6, 512);
+        assert_eq!(choice, EvictionChoice::AgeWeighted);
     }
 }

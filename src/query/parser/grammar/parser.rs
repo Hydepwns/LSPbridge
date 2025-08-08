@@ -1,7 +1,6 @@
 //! Main parsing engine implementation
 
 use super::types::{ParserState, ParsingContext, ProductionRule, ParseResult, ValueParser, DefaultValueParser};
-use super::rules::{QueryRules, ClauseRules, FilterRules, ExpressionRules};
 use super::utilities::ParserUtilities;
 use super::super::ast::*;
 use super::super::lexer::{Token, TokenType};
@@ -15,6 +14,7 @@ pub struct Parser {
     state: ParserState,
     context: ParsingContext,
     value_parser: Box<dyn ValueParser>,
+    #[allow(dead_code)]
     utilities: ParserUtilities,
 }
 
@@ -63,14 +63,14 @@ impl Parser {
         }
         
         // Optional GROUP BY clause
-        let group_by = if self.state.match_token(&TokenType::GroupBy) {
+        let group_by = if self.state.match_token(&TokenType::Group) {
             Some(self.parse_group_by_clause()?)
         } else {
             None
         };
         
         // Optional ORDER BY clause
-        let order_by = if self.state.match_token(&TokenType::OrderBy) {
+        let order_by = if self.state.match_token(&TokenType::Order) {
             Some(self.parse_order_by_clause()?)
         } else {
             None
@@ -114,7 +114,13 @@ impl Parser {
             self.state.consume(TokenType::Asterisk, "Expected '*' in COUNT(*)")?;
             self.state.consume(TokenType::RightParen, "Expected ')' after COUNT(*)")?;
             SelectClause::Count
-        } else if self.state.check_identifier() {
+        } else if self.state.check_identifier() || 
+                  self.state.check(&TokenType::Errors) ||
+                  self.state.check(&TokenType::Warnings) ||
+                  self.state.check(&TokenType::Files) ||
+                  self.state.check(&TokenType::Diagnostics) ||
+                  self.state.check(&TokenType::History) ||
+                  self.state.check(&TokenType::Trends) {
             let fields = self.parse_field_list()?;
             SelectClause::Fields(fields)
         } else {
@@ -137,18 +143,42 @@ impl Parser {
         
         self.state.consume(TokenType::From, "Expected 'FROM'")?;
         
-        let token = self.state.consume(TokenType::Identifier, "Expected table name")?;
-        let result = match token.lexeme.as_str() {
-            "diagnostics" => FromClause::Diagnostics,
-            "files" => FromClause::Files,
-            "symbols" => FromClause::Symbols,
-            "references" => FromClause::References,
-            "projects" => FromClause::Projects,
-            _ => return Err(ParseError::UnknownTable {
-                table: token.lexeme.clone(),
-                line: token.line,
-                column: token.column,
-            }),
+        // Check for table name - can be a keyword token or identifier
+        let result = if self.state.check(&TokenType::Diagnostics) {
+            self.state.advance();
+            FromClause::Diagnostics
+        } else if self.state.check(&TokenType::Files) {
+            self.state.advance();
+            FromClause::Files
+        } else if self.state.check(&TokenType::History) {
+            self.state.advance();
+            FromClause::History
+        } else if self.state.check(&TokenType::Trends) {
+            self.state.advance();
+            FromClause::Trends
+        } else if self.state.check_identifier() {
+            let token = self.state.advance();
+            match token.lexeme.as_str() {
+                "diagnostics" => FromClause::Diagnostics,
+                "files" => FromClause::Files,
+                "symbols" => FromClause::Symbols,
+                "references" => FromClause::References,
+                "projects" => FromClause::Projects,
+                "history" => FromClause::History,
+                "trends" => FromClause::Trends,
+                _ => return Err(ParseError::UnknownTable {
+                    table: token.lexeme.clone(),
+                    line: token.line,
+                    column: token.column,
+                }),
+            }
+        } else {
+            return Err(ParseError::UnexpectedToken {
+                expected: "table name".to_string(),
+                found: self.state.peek().lexeme.clone(),
+                line: self.state.peek().line,
+                column: self.state.peek().column,
+            });
         };
         
         self.context.exit_rule();
@@ -218,10 +248,8 @@ impl Parser {
     fn parse_group_by_clause(&mut self) -> ParseResult<GroupByClause> {
         self.context.enter_rule(ProductionRule::GroupByClause);
         
-        // Skip "BY" if present (already consumed "GROUP")
-        if self.state.check(&TokenType::GroupBy) {
-            self.state.advance();
-        }
+        // Consume "BY" (already consumed "GROUP")
+        self.state.consume(TokenType::By, "Expected 'BY' after 'GROUP'")?;
         
         let fields = self.parse_field_list()?;
         
@@ -233,12 +261,53 @@ impl Parser {
     fn parse_order_by_clause(&mut self) -> ParseResult<OrderByClause> {
         self.context.enter_rule(ProductionRule::OrderByClause);
         
-        // Skip "BY" if present (already consumed "ORDER")
-        if self.state.check(&TokenType::OrderBy) {
-            self.state.advance();
-        }
+        // Consume "BY" (already consumed "ORDER")
+        self.state.consume(TokenType::By, "Expected 'BY' after 'ORDER'")?;
         
-        let field = self.state.consume(TokenType::Identifier, "Expected field name")?.lexeme.clone();
+        // Parse field or aggregation function
+        let field = if self.state.check(&TokenType::Count) || 
+                       self.state.check(&TokenType::Sum) ||
+                       self.state.check(&TokenType::Avg) ||
+                       self.state.check(&TokenType::Min) ||
+                       self.state.check(&TokenType::Max) {
+            let func = self.state.advance().lexeme.clone();
+            // Handle COUNT(*) and other aggregation functions
+            if self.state.check(&TokenType::LeftParen) {
+                self.state.advance();
+                let arg = if self.state.check(&TokenType::Asterisk) {
+                    self.state.advance();
+                    "*".to_string()
+                } else if self.state.check_identifier() {
+                    self.state.advance().lexeme.clone()
+                } else {
+                    return Err(ParseError::UnexpectedToken {
+                        expected: "field name or *".to_string(),
+                        found: self.state.peek().lexeme.clone(),
+                        line: self.state.peek().line,
+                        column: self.state.peek().column,
+                    });
+                };
+                self.state.consume(TokenType::RightParen, "Expected ')' after aggregation function")?;
+                format!("{func}({arg})")
+            } else {
+                func
+            }
+        } else if self.state.check_identifier() || 
+                  self.state.check(&TokenType::Errors) ||
+                  self.state.check(&TokenType::Warnings) ||
+                  self.state.check(&TokenType::Files) ||
+                  self.state.check(&TokenType::Diagnostics) ||
+                  self.state.check(&TokenType::History) ||
+                  self.state.check(&TokenType::Trends) {
+            self.state.advance().lexeme.clone()
+        } else {
+            return Err(ParseError::UnexpectedToken {
+                expected: "field name".to_string(),
+                found: self.state.peek().lexeme.clone(),
+                line: self.state.peek().line,
+                column: self.state.peek().column,
+            });
+        };
         
         let direction = if self.state.match_token(&TokenType::Desc) {
             OrderDirection::Descending
@@ -255,8 +324,24 @@ impl Parser {
     fn parse_limit_clause(&mut self) -> ParseResult<u32> {
         self.context.enter_rule(ProductionRule::LimitClause);
         
-        let token = self.state.consume(TokenType::Number, "Expected number after LIMIT")?;
+        if !self.state.check_number() {
+            return Err(ParseError::UnexpectedToken {
+                expected: "number after LIMIT".to_string(),
+                found: self.state.peek().lexeme.clone(),
+                line: self.state.peek().line,
+                column: self.state.peek().column,
+            });
+        }
+        let token = self.state.advance();
         let value = self.value_parser.parse_number_value(&token.lexeme)? as u32;
+        
+        // Validate limit value
+        if value == 0 {
+            return Err(ParseError::InvalidLimit {
+                limit: value,
+                reason: "LIMIT must be greater than 0".to_string(),
+            });
+        }
         
         self.context.exit_rule();
         Ok(value)
@@ -267,7 +352,51 @@ impl Parser {
         let mut fields = Vec::new();
         
         loop {
-            let field = self.state.consume(TokenType::Identifier, "Expected field name")?.lexeme.clone();
+            // Check for aggregation functions first
+            let field = if self.state.check(&TokenType::Count) || 
+                          self.state.check(&TokenType::Sum) ||
+                          self.state.check(&TokenType::Avg) ||
+                          self.state.check(&TokenType::Min) ||
+                          self.state.check(&TokenType::Max) {
+                let func = self.state.advance().lexeme.clone();
+                // Handle COUNT(*) and other aggregation functions
+                if self.state.check(&TokenType::LeftParen) {
+                    self.state.advance();
+                    let arg = if self.state.check(&TokenType::Asterisk) {
+                        self.state.advance();
+                        "*".to_string()
+                    } else if self.state.check_identifier() {
+                        self.state.advance().lexeme.clone()
+                    } else {
+                        return Err(ParseError::UnexpectedToken {
+                            expected: "field name or *".to_string(),
+                            found: self.state.peek().lexeme.clone(),
+                            line: self.state.peek().line,
+                            column: self.state.peek().column,
+                        });
+                    };
+                    self.state.consume(TokenType::RightParen, "Expected ')' after aggregation function")?;
+                    format!("{func}({arg})")
+                } else {
+                    func
+                }
+            } else if self.state.check_identifier() {
+                self.state.advance().lexeme.clone()
+            } else if self.state.check(&TokenType::Errors) ||
+                      self.state.check(&TokenType::Warnings) ||
+                      self.state.check(&TokenType::Files) ||
+                      self.state.check(&TokenType::Diagnostics) ||
+                      self.state.check(&TokenType::History) ||
+                      self.state.check(&TokenType::Trends) {
+                self.state.advance().lexeme.clone()
+            } else {
+                return Err(ParseError::UnexpectedToken {
+                    expected: "field name".to_string(),
+                    found: self.state.peek().lexeme.clone(),
+                    line: self.state.peek().line,
+                    column: self.state.peek().column,
+                });
+            };
             fields.push(field);
             
             if self.state.match_token(&TokenType::Comma) {
@@ -282,7 +411,7 @@ impl Parser {
 
     /// Parse severity filter
     fn parse_severity_filter(&mut self) -> ParseResult<QueryFilter> {
-        self.parse_comparison_operator()?;
+        let comparison = self.parse_comparison_operator()?;
         let value = self.parse_string_or_identifier()?;
         
         let severity = match value.to_lowercase().as_str() {
@@ -297,26 +426,26 @@ impl Parser {
             }),
         };
         
-        Ok(QueryFilter::Severity(SeverityFilter { severity }))
+        Ok(QueryFilter::Severity(SeverityFilter { severity, comparison }))
     }
 
     /// Parse file filter
     fn parse_file_filter(&mut self) -> ParseResult<QueryFilter> {
-        self.parse_comparison_operator()?;
+        let _comparison = self.parse_comparison_operator()?; // File filter doesn't use comparison
         let pattern = self.parse_string_or_identifier()?;
         Ok(QueryFilter::File(FileFilter { pattern }))
     }
 
     /// Parse symbol filter
     fn parse_symbol_filter(&mut self) -> ParseResult<QueryFilter> {
-        self.parse_comparison_operator()?;
+        let _comparison = self.parse_comparison_operator()?; // Symbol filter doesn't use comparison
         let pattern = self.parse_string_or_identifier()?;
         Ok(QueryFilter::Symbol(SymbolFilter { pattern }))
     }
 
     /// Parse time filter
     fn parse_time_filter(&mut self, field: String) -> ParseResult<QueryFilter> {
-        self.parse_comparison_operator()?;
+        let _comparison = self.parse_comparison_operator()?; // Time filter doesn't use comparison
         let value = self.parse_string_or_identifier()?;
         
         // Parse the datetime
@@ -339,7 +468,7 @@ impl Parser {
 
     /// Parse custom filter
     fn parse_custom_filter(&mut self, field: String) -> ParseResult<QueryFilter> {
-        self.parse_comparison_operator()?;
+        let _comparison = self.parse_comparison_operator()?; // Custom filter doesn't use comparison
         let value = self.parse_string_or_identifier()?;
         Ok(QueryFilter::Custom(field, value))
     }
@@ -374,26 +503,34 @@ impl Parser {
     }
 
     /// Parse comparison operator
-    fn parse_comparison_operator(&mut self) -> ParseResult<()> {
+    fn parse_comparison_operator(&mut self) -> ParseResult<Comparison> {
         self.context.enter_rule(ProductionRule::ComparisonOperator);
         
-        if self.state.match_token(&TokenType::Equal) ||
-           self.state.match_token(&TokenType::NotEqual) ||
-           self.state.match_token(&TokenType::Like) ||
-           self.state.match_token(&TokenType::Greater) ||
-           self.state.match_token(&TokenType::Less) ||
-           self.state.match_token(&TokenType::GreaterEqual) ||
-           self.state.match_token(&TokenType::LessEqual) {
-            self.context.exit_rule();
-            Ok(())
+        let comparison = if self.state.match_token(&TokenType::Equal) {
+            Comparison::Equal
+        } else if self.state.match_token(&TokenType::NotEqual) {
+            Comparison::NotEqual
+        } else if self.state.match_token(&TokenType::Like) {
+            Comparison::Equal // Like is treated as Equal for severity
+        } else if self.state.match_token(&TokenType::GreaterThan) {
+            Comparison::GreaterThan
+        } else if self.state.match_token(&TokenType::LessThan) {
+            Comparison::LessThan
+        } else if self.state.match_token(&TokenType::GreaterThanOrEqual) {
+            Comparison::GreaterThanOrEqual
+        } else if self.state.match_token(&TokenType::LessThanOrEqual) {
+            Comparison::LessThanOrEqual
         } else {
-            Err(ParseError::UnexpectedToken {
+            return Err(ParseError::UnexpectedToken {
                 expected: "comparison operator".to_string(),
                 found: self.state.peek().lexeme.clone(),
                 line: self.state.peek().line,
                 column: self.state.peek().column,
-            })
-        }
+            });
+        };
+        
+        self.context.exit_rule();
+        Ok(comparison)
     }
 
     /// Parse string or identifier value
@@ -416,7 +553,15 @@ impl Parser {
 
     /// Parse number value
     fn parse_number_value(&mut self) -> ParseResult<f64> {
-        let token = self.state.consume(TokenType::Number, "Expected number")?;
+        if !self.state.check_number() {
+            return Err(ParseError::UnexpectedToken {
+                expected: "number".to_string(),
+                found: self.state.peek().lexeme.clone(),
+                line: self.state.peek().line,
+                column: self.state.peek().column,
+            });
+        }
+        let token = self.state.advance();
         self.value_parser.parse_number_value(&token.lexeme)
     }
 }

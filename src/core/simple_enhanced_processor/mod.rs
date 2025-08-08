@@ -37,6 +37,7 @@ pub struct SimpleEnhancedProcessor {
     error_recovery: Arc<ErrorRecoverySystem>,
     metrics: Option<Arc<MetricsCollector>>,
     config: types::SimpleEnhancedConfig,
+    #[allow(dead_code)]
     last_optimization: RwLock<Instant>,
 }
 

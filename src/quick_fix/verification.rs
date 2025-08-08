@@ -204,6 +204,7 @@ impl FixVerifier {
     }
 
     /// Check if the original diagnostic is resolved and find new issues
+    #[allow(dead_code)]
     async fn check_diagnostics(
         &self,
         original: &Diagnostic,

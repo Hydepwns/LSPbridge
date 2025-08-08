@@ -1,6 +1,6 @@
 //! Parser utility functions and helpers
 
-use super::types::{ParserState, ParsingContext, ParseResult};
+use super::types::ParserState;
 use super::super::lexer::{Token, TokenType};
 use crate::core::errors::ParseError;
 use std::collections::HashMap;
@@ -11,7 +11,14 @@ pub struct ParserUtilities {
     token_cache: HashMap<String, Token>,
     
     /// Error recovery strategies
+    #[allow(dead_code)]
     recovery_strategies: Vec<RecoveryStrategy>,
+}
+
+impl Default for ParserUtilities {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl ParserUtilities {
@@ -38,8 +45,8 @@ impl ParserUtilities {
                 TokenType::Select |
                 TokenType::From |
                 TokenType::Where |
-                TokenType::GroupBy |
-                TokenType::OrderBy |
+                TokenType::Group |
+                TokenType::Order |
                 TokenType::Limit => return,
                 _ => {}
             }
@@ -77,14 +84,15 @@ impl ParserUtilities {
             (TokenType::Equal, TokenType::Number(_)) => true,
             (TokenType::And, TokenType::Identifier(_)) => true,
             (TokenType::Or, TokenType::Identifier(_)) => true,
-            (TokenType::GroupBy, TokenType::Identifier(_)) => true,
-            (TokenType::OrderBy, TokenType::Identifier(_)) => true,
+            (TokenType::Group, TokenType::By) => true,
+            (TokenType::Order, TokenType::By) => true,
+            (TokenType::By, TokenType::Identifier(_)) => true,
             (TokenType::Limit, TokenType::Number(_)) => true,
             
             // Invalid pairs that commonly occur due to syntax errors
             (TokenType::Select, TokenType::From) => false, // Missing selection
             (TokenType::From, TokenType::Where) => false,  // Missing table name
-            (TokenType::Where, TokenType::GroupBy) => false, // Missing condition
+            (TokenType::Where, TokenType::Group) => false, // Missing condition
             (TokenType::Equal, TokenType::Equal) => false, // Double equals
             
             // Default: allow most combinations
@@ -123,7 +131,7 @@ impl ParserUtilities {
 
         for (correct, typos) in &corrections {
             if expected.contains(correct) && typos.contains(&found) {
-                return Some(format!("Did you mean '{}'?", correct));
+                return Some(format!("Did you mean '{correct}'?"));
             }
         }
 
@@ -146,7 +154,7 @@ impl ParserUtilities {
             }
         }
         
-        best_match.map(|table| format!("Did you mean '{}'?", table))
+        best_match.map(|table| format!("Did you mean '{table}'?"))
     }
 
     /// Suggest severity corrections
@@ -158,13 +166,13 @@ impl ParserUtilities {
         
         for valid_severity in &valid_severities {
             let distance = self.edit_distance(&severity.to_lowercase(), valid_severity);
-            if distance < best_distance && distance <= 2 {
+            if distance < best_distance && distance <= 3 {
                 best_distance = distance;
                 best_match = Some(*valid_severity);
             }
         }
         
-        best_match.map(|severity| format!("Did you mean '{}'?", severity))
+        best_match.map(|severity| format!("Did you mean '{severity}'?"))
     }
 
     /// Calculate edit distance between two strings
@@ -204,23 +212,23 @@ impl ParserUtilities {
 
     /// Format error message with context
     pub fn format_error_with_context(&self, error: &ParseError, input: &str) -> String {
-        let mut message = format!("Parse error: {}", error);
+        let mut message = format!("Parse error: {error}");
         
         // Add line context if available
         if let Some((line_num, column)) = self.get_error_position(error) {
             if let Some(line_content) = self.get_line_content(input, line_num) {
-                message.push_str(&format!("\n  --> Line {}, Column {}", line_num, column));
-                message.push_str(&format!("\n     | {}", line_content));
+                message.push_str(&format!("\n  --> Line {line_num}, Column {column}"));
+                message.push_str(&format!("\n     | {line_content}"));
                 
                 // Add pointer to error location
                 let pointer = " ".repeat(column.saturating_sub(1)) + "^";
-                message.push_str(&format!("\n     | {}", pointer));
+                message.push_str(&format!("\n     | {pointer}"));
             }
         }
         
         // Add suggestion if available
         if let Some(suggestion) = self.suggest_correction(error) {
-            message.push_str(&format!("\n  Help: {}", suggestion));
+            message.push_str(&format!("\n  Help: {suggestion}"));
         }
         
         message
@@ -340,7 +348,7 @@ mod tests {
         let utils = ParserUtilities::new();
         
         // Valid sequence
-        let valid_tokens = vec![TokenType::Select, TokenType::Asterisk, TokenType::From, TokenType::Identifier];
+        let valid_tokens = vec![TokenType::Select, TokenType::Asterisk, TokenType::From, TokenType::Identifier("diagnostics".to_string())];
         assert!(utils.validate_token_sequence(&valid_tokens));
         
         // Invalid sequence

@@ -1,16 +1,16 @@
-use std::time::Duration;
 use tokio::time::interval;
-use tracing::{debug, info};
 
 use crate::core::database_pool::manager::ConnectionManager;
 use crate::core::database_pool::types::PoolConfig;
 
 /// Handles monitoring and maintenance of the connection pool
+#[allow(dead_code)]
 pub(crate) struct PoolMonitor {
     manager: &'static ConnectionManager,
     config: PoolConfig,
 }
 
+#[allow(dead_code)]
 impl PoolMonitor {
     pub fn new(manager: &'static ConnectionManager, config: PoolConfig) -> Self {
         Self { manager, config }

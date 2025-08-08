@@ -16,6 +16,7 @@ pub struct InteractiveRepl {
     executor: QueryExecutor,
     history: VecDeque<String>,
     saved_queries: Vec<SavedQuery>,
+    #[allow(dead_code)]
     current_input: String,
     history_index: Option<usize>,
 }
@@ -25,6 +26,12 @@ struct SavedQuery {
     name: String,
     query: String,
     description: String,
+}
+
+impl Default for InteractiveRepl {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl InteractiveRepl {
@@ -299,7 +306,7 @@ impl InteractiveRepl {
 
         // Print rows (limit display to 20 rows)
         let display_limit = 20;
-        for (idx, row) in result.rows.iter().take(display_limit).enumerate() {
+        for (_idx, row) in result.rows.iter().take(display_limit).enumerate() {
             let mut row_str = String::new();
             for (i, value) in row.values.iter().enumerate() {
                 let str_val = value.to_string();
@@ -328,7 +335,7 @@ impl InteractiveRepl {
                     width = column_widths[i]
                 ));
             }
-            println!("{}", row_str);
+            println!("{row_str}");
         }
 
         if result.rows.len() > display_limit {

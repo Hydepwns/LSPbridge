@@ -4,6 +4,8 @@
 //! related repositories, including monorepo support, shared type definitions,
 //! and team collaboration features.
 
+#![allow(deprecated)]
+
 pub mod aggregator;
 pub mod collaboration;
 pub mod cross_repo;
@@ -27,6 +29,7 @@ use std::path::PathBuf;
 /// **DEPRECATED**: This struct is deprecated in favor of the unified configuration system.
 /// Use `crate::core::config::UnifiedConfig` with the `multi_repo` field instead.
 /// This struct is kept for backward compatibility and will be removed in a future version.
+#[allow(deprecated)]
 #[deprecated(
     since = "0.2.0",
     note = "Use crate::core::config::UnifiedConfig instead"
@@ -52,6 +55,7 @@ pub struct MultiRepoConfig {
     pub cache_dir: PathBuf,
 }
 
+#[allow(deprecated)]
 impl Default for MultiRepoConfig {
     fn default() -> Self {
         Self {
@@ -76,6 +80,7 @@ impl_config_defaults!(MultiRepoConfig, "multi-repo.toml", validate => |config: &
 });
 
 /// Migration utilities for multi-repo configuration
+#[allow(deprecated)]
 impl MultiRepoConfig {
     /// Convert to the unified config multi-repo section
     pub fn to_unified(&self) -> crate::core::config::MultiRepoConfig {
@@ -104,16 +109,17 @@ impl MultiRepoConfig {
 
 /// Multi-repository analysis context
 pub struct MultiRepoContext {
-    config: MultiRepoConfig,
+    config: crate::core::config::MultiRepoConfig,
     registry: RepositoryRegistry,
     aggregator: DiagnosticAggregator,
     analyzer: CrossRepoAnalyzer,
+    #[allow(dead_code)]
     team_db: Option<TeamDatabase>,
 }
 
 impl MultiRepoContext {
     /// Create a new multi-repository context
-    pub async fn new(config: MultiRepoConfig) -> Result<Self> {
+    pub async fn new(config: crate::core::config::MultiRepoConfig) -> Result<Self> {
         let registry = RepositoryRegistry::load_or_create(&config.registry_path).await?;
         let aggregator = DiagnosticAggregator::new(config.max_concurrent_repos);
         let analyzer = CrossRepoAnalyzer::new(config.enable_cross_repo_types);
@@ -156,6 +162,15 @@ impl MultiRepoContext {
             detector.detect(root).await
         } else {
             Ok(None)
+        }
+    }
+
+    /// List repositories with optional filtering
+    pub async fn list_repositories(&self, include_inactive: bool) -> Result<Vec<RepositoryInfo>> {
+        if include_inactive {
+            self.registry.list_all().await
+        } else {
+            self.registry.list_active().await
         }
     }
 }

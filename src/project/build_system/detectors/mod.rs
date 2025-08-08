@@ -13,6 +13,7 @@ pub mod make;
 /// Trait for build system detection
 pub trait BuildSystemDetector: Send + Sync {
     /// Get the build system this detector handles
+    #[allow(dead_code)]
     fn build_system(&self) -> BuildSystem;
 
     /// Check if this detector can handle the given project

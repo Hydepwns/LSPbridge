@@ -37,6 +37,7 @@ pub mod structure {
 
 /// Simplified project analyzer for tests and basic usage
 pub struct ProjectAnalyzer {
+    #[allow(dead_code)]
     structure_analyzer: StructureAnalyzer,
 }
 
@@ -128,7 +129,7 @@ impl ProjectInfo {
         summary.push_str(&format!("Build System: {:?}\n", self.build_config.system));
         summary.push_str("Available Commands:\n");
         for (name, cmd) in self.build_config.all_commands() {
-            summary.push_str(&format!("  {}: {}\n", name, cmd));
+            summary.push_str(&format!("  {name}: {cmd}\n"));
         }
         summary.push('\n');
 
@@ -148,18 +149,18 @@ impl ProjectInfo {
         }
 
         if let Some(lang) = self.structure.get_main_language() {
-            context.push_str(&format!("Primary Language: {}\n", lang));
+            context.push_str(&format!("Primary Language: {lang}\n"));
         }
 
         context.push_str("\nHow to run common tasks:\n");
         if let Some(cmd) = self.build_config.get_command("build") {
-            context.push_str(&format!("- Build: {}\n", cmd));
+            context.push_str(&format!("- Build: {cmd}\n"));
         }
         if let Some(cmd) = self.build_config.get_command("test") {
-            context.push_str(&format!("- Test: {}\n", cmd));
+            context.push_str(&format!("- Test: {cmd}\n"));
         }
         if let Some(cmd) = self.build_config.get_command("lint") {
-            context.push_str(&format!("- Lint: {}\n", cmd));
+            context.push_str(&format!("- Lint: {cmd}\n"));
         }
 
         context

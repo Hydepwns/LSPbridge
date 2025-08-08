@@ -7,6 +7,7 @@ use std::collections::HashSet;
 /// Query validator for semantic analysis
 pub struct QueryValidator {
     valid_fields: HashSet<String>,
+    #[allow(dead_code)]
     valid_data_sources: HashSet<String>,
 }
 
@@ -128,6 +129,10 @@ impl QueryValidator {
         // Check SELECT clause fields
         if let super::ast::SelectClause::Fields(fields) = &query.select {
             for field in fields {
+                // Allow aggregation functions
+                if self.is_aggregation_function(field) {
+                    continue;
+                }
                 if !self.valid_fields.contains(field) {
                     errors.push(ParseError::UnknownField {
                         field: field.clone(),
@@ -140,6 +145,10 @@ impl QueryValidator {
         // Check GROUP BY fields
         if let Some(group_by) = &query.group_by {
             for field in &group_by.fields {
+                // Allow aggregation functions
+                if self.is_aggregation_function(field) {
+                    continue;
+                }
                 if !self.valid_fields.contains(field) {
                     errors.push(ParseError::UnknownField {
                         field: field.clone(),
@@ -151,7 +160,8 @@ impl QueryValidator {
 
         // Check ORDER BY field
         if let Some(order_by) = &query.order_by {
-            if !self.valid_fields.contains(&order_by.field) {
+            // Allow aggregation functions
+            if !self.is_aggregation_function(&order_by.field) && !self.valid_fields.contains(&order_by.field) {
                 errors.push(ParseError::UnknownField {
                     field: order_by.field.clone(),
                     available_fields: self.valid_fields.iter().cloned().collect(),
@@ -179,7 +189,7 @@ impl QueryValidator {
                     QueryAggregation::Max(field) => {
                         if field != "*" && !self.is_numeric_field(field) {
                             return Err(ParseError::InvalidAggregation {
-                                function: format!("{:?}", aggregation),
+                                function: format!("{aggregation:?}"),
                                 field: field.clone(),
                                 reason: "Aggregation function can only be applied to numeric fields".to_string(),
                             });
@@ -280,6 +290,21 @@ impl QueryValidator {
             field,
             "line" | "column" | "file_size" | "file_count" | "count" | "duration" | "size"
         )
+    }
+
+    /// Check if a field name is an aggregation function
+    fn is_aggregation_function(&self, field: &str) -> bool {
+        // Check if it matches aggregation patterns like COUNT(*), SUM(field), etc.
+        field.starts_with("COUNT(") ||
+        field.starts_with("count(") ||
+        field.starts_with("SUM(") ||
+        field.starts_with("sum(") ||
+        field.starts_with("AVG(") ||
+        field.starts_with("avg(") ||
+        field.starts_with("MIN(") ||
+        field.starts_with("min(") ||
+        field.starts_with("MAX(") ||
+        field.starts_with("max(")
     }
 
     /// Add a custom field to the validator

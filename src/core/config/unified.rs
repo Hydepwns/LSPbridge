@@ -225,7 +225,9 @@ impl UnifiedConfig {
     /// Create a testing configuration optimized for CI/CD
     pub fn testing() -> Self {
         let security = super::super::security_config::SecurityConfig::development();
-        let config = Self {
+        
+        
+        Self {
             cache: CacheConfig {
                 enable_persistent_cache: false,  // Memory-only cache for tests
                 max_size_mb: 50,  // Smaller cache for tests
@@ -265,9 +267,7 @@ impl UnifiedConfig {
             },
             security,
             ..Self::default()
-        };
-        
-        config
+        }
     }
 
     /// Load configuration from file, falling back to defaults if file doesn't exist
@@ -355,7 +355,7 @@ impl UnifiedConfig {
         }
 
         // Metrics validation
-        if self.metrics.prometheus_port < 1024 || self.metrics.prometheus_port > 65535 {
+        if self.metrics.prometheus_port < 1024 {
             anyhow::bail!("Prometheus port must be between 1024 and 65535");
         }
 
@@ -435,11 +435,11 @@ impl UnifiedConfig {
                 export_format: dynamic.metrics.export_format.clone(),
             },
             features: FeatureFlags {
-                auto_optimization: dynamic.features.auto_optimization,
-                health_monitoring: dynamic.features.health_monitoring,
-                cache_warming: dynamic.features.cache_warming,
-                advanced_diagnostics: dynamic.features.advanced_diagnostics,
-                experimental_features: dynamic.features.experimental_features,
+                auto_optimization: dynamic.features.enable_smart_caching,
+                health_monitoring: dynamic.features.enable_advanced_filtering,
+                cache_warming: dynamic.features.enable_batch_processing,
+                advanced_diagnostics: dynamic.features.enable_experimental_features,
+                experimental_features: dynamic.features.enable_experimental_features,
             },
             security: SecurityConfig::default(), // Not in dynamic config
         }
@@ -500,18 +500,15 @@ impl UnifiedConfig {
                 export_format: self.metrics.export_format.clone(),
             },
             features: crate::core::dynamic_config::FeatureFlags {
-                auto_optimization: self.features.auto_optimization,
-                health_monitoring: self.features.health_monitoring,
-                cache_warming: self.features.cache_warming,
-                advanced_diagnostics: self.features.advanced_diagnostics,
-                experimental_features: self.features.experimental_features,
+                enable_smart_caching: self.features.auto_optimization,
+                enable_advanced_filtering: self.features.health_monitoring,
+                enable_batch_processing: self.features.cache_warming,
+                enable_experimental_features: self.features.experimental_features,
             },
             performance: crate::core::dynamic_config::PerformanceConfig {
-                optimization_interval_minutes: 60, // Default
-                health_check_interval_minutes: 5,  // Default
-                gc_threshold_mb: 512,              // Default
                 max_cpu_usage_percent: self.performance.max_cpu_usage_percent,
-                adaptive_scaling: self.performance.adaptive_scaling,
+                io_priority: "normal".to_string(), // Default
+                enable_parallel_io: self.performance.parallel_processing,
             },
         }
     }

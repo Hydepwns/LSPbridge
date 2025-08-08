@@ -33,6 +33,12 @@ pub struct OptimizedFileScanner {
     max_threads: usize,
 }
 
+impl Default for OptimizedFileScanner {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl OptimizedFileScanner {
     pub fn new() -> Self {
         Self {
@@ -134,7 +140,7 @@ impl OptimizedFileScanner {
     /// Compute file metadata
     fn compute_metadata(&self, path: &Path) -> Result<FileMetadata> {
         let fs_metadata = fs::metadata(path)
-            .with_context(|| format!("Failed to read metadata for {:?}", path))?;
+            .with_context(|| format!("Failed to read metadata for {path:?}"))?;
         
         let language = path.extension()
             .and_then(|ext| ext.to_str())
@@ -258,6 +264,7 @@ impl<T: Clone + Send + Sync + 'static> LazyLoader<T> {
 /// Batch processor for parallel file operations
 pub struct BatchFileProcessor {
     batch_size: usize,
+    #[allow(dead_code)]
     max_concurrent: usize,
 }
 
@@ -332,6 +339,7 @@ impl BatchFileProcessor {
 pub struct FileContentIterator {
     paths: Vec<PathBuf>,
     current_index: usize,
+    #[allow(dead_code)]
     buffer_size: usize,
 }
 
@@ -356,7 +364,7 @@ impl FileContentIterator {
         Some(
             fs::read_to_string(path)
                 .map(|content| (path.clone(), content))
-                .with_context(|| format!("Failed to read file: {:?}", path))
+                .with_context(|| format!("Failed to read file: {path:?}"))
         )
     }
 

@@ -55,11 +55,18 @@ use tokio::sync::RwLock;
 /// }
 /// ```
 pub struct QueryApi {
+    #[allow(dead_code)]
     parser: QueryParser,
     executor: Arc<RwLock<QueryExecutor>>,
     rate_limiter: Arc<RateLimiter>,
     handler: handlers::QueryHandler,
     router: router::QueryRouter,
+}
+
+impl Default for QueryApi {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl QueryApi {

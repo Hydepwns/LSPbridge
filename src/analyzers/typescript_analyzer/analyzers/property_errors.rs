@@ -5,10 +5,17 @@ use crate::core::{Diagnostic, SemanticContext};
 use regex::Regex;
 
 pub struct PropertyErrorAnalyzer {
+    #[allow(dead_code)]
     type_inference: TypeInferenceHelper,
 }
 
 impl AnalyzerBase for PropertyErrorAnalyzer {}
+
+impl Default for PropertyErrorAnalyzer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl PropertyErrorAnalyzer {
     pub fn new() -> Self {
@@ -49,7 +56,7 @@ impl PropertyErrorAnalyzer {
                     if let Some(similar) =
                         ComplexityScorer::find_similar_name(missing_prop, &available_properties)
                     {
-                        self.add_insight(&mut analysis, &format!("Did you mean '{}'?", similar));
+                        self.add_insight(&mut analysis, &format!("Did you mean '{similar}'?"));
                         analysis.fix_complexity = 1;
                     }
                 }

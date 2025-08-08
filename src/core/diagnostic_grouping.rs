@@ -21,6 +21,7 @@ pub struct DiagnosticGrouper {
 #[derive(Debug)]
 struct GroupingPattern {
     /// Name of the pattern
+    #[allow(dead_code)]
     name: String,
     /// Function to check if two diagnostics are related
     matcher: fn(&Diagnostic, &Diagnostic) -> bool,
@@ -236,8 +237,8 @@ impl DiagnosticGrouper {
                 &diagnostic.message.chars().take(100).collect::<String>()
             );
 
-            if !seen.contains_key(&key) {
-                seen.insert(key, true);
+            if let std::collections::hash_map::Entry::Vacant(e) = seen.entry(key) {
+                e.insert(true);
                 deduplicated.push(diagnostic);
             }
         }

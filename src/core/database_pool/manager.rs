@@ -5,11 +5,12 @@ use tokio::sync::Mutex;
 use std::collections::VecDeque;
 use tracing::{debug, info};
 
-use crate::core::database_pool::types::{PoolConfig, PoolStats, ConnectionStats};
+use crate::core::database_pool::types::{PoolConfig, PoolStats};
 
 /// Internal connection with metadata
 pub(crate) struct InternalConnection {
     pub connection: Connection,
+    #[allow(dead_code)]
     pub created_at: Instant,
     pub last_used: Instant,
 }
@@ -78,7 +79,7 @@ impl ConnectionManager {
             
             move || -> Result<Connection> {
                 let conn = Connection::open_with_flags(&db_path, flags)
-                    .with_context(|| format!("Failed to open database: {:?}", db_path))?;
+                    .with_context(|| format!("Failed to open database: {db_path:?}"))?;
 
                 // Optimize connection settings
                 conn.execute_batch(&format!(

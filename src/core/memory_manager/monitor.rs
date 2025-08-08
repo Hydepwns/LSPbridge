@@ -10,7 +10,7 @@ use tokio::sync::{mpsc, RwLock};
 use tokio::time;
 use tracing::{error, info, warn};
 
-use super::types::{CacheStatistics, MemoryHealthStatus, MemoryReport};
+use super::types::MemoryReport;
 
 /// Memory monitoring events
 #[derive(Debug, Clone)]
@@ -128,7 +128,7 @@ pub struct MemoryMonitor {
     config: MonitorConfig,
     event_sender: mpsc::Sender<MemoryEvent>,
     event_receiver: Arc<RwLock<mpsc::Receiver<MemoryEvent>>>,
-    last_threshold: RwLock<Option<MemoryThreshold>>,
+    last_threshold: Arc<RwLock<Option<MemoryThreshold>>>,
     monitoring_task: RwLock<Option<tokio::task::JoinHandle<()>>>,
 }
 
@@ -141,7 +141,7 @@ impl MemoryMonitor {
             config,
             event_sender: sender,
             event_receiver: Arc::new(RwLock::new(receiver)),
-            last_threshold: RwLock::new(None),
+            last_threshold: Arc::new(RwLock::new(None)),
             monitoring_task: RwLock::new(None),
         }
     }
@@ -159,7 +159,7 @@ impl MemoryMonitor {
 
         let config = self.config.clone();
         let event_sender = self.event_sender.clone();
-        let last_threshold = Arc::new(self.last_threshold.clone());
+        let last_threshold = self.last_threshold.clone();
 
         let handle = tokio::spawn(async move {
             let mut interval = time::interval(config.check_interval);
@@ -207,19 +207,20 @@ impl MemoryMonitor {
 
     /// Get event receiver
     pub async fn subscribe(&self) -> mpsc::Receiver<MemoryEvent> {
-        let (sender, receiver) = mpsc::channel(100);
-        let mut current_receiver = self.event_receiver.write().await;
+        let (sender, new_receiver) = mpsc::channel(100);
+        let event_receiver = self.event_receiver.clone();
         
         // Forward events to new receiver
         tokio::spawn(async move {
-            while let Some(event) = current_receiver.recv().await {
+            let mut receiver = event_receiver.write().await;
+            while let Some(event) = receiver.recv().await {
                 if sender.send(event).await.is_err() {
                     break;
                 }
             }
         });
 
-        receiver
+        new_receiver
     }
 
     /// Check memory thresholds
@@ -352,7 +353,9 @@ pub struct MemoryOptimizer {
 #[derive(Debug, Clone)]
 struct OptimizationRecord {
     timestamp: Instant,
+    #[allow(dead_code)]
     before_bytes: usize,
+    #[allow(dead_code)]
     after_bytes: usize,
     freed_bytes: usize,
     duration: Duration,
