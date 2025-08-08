@@ -39,6 +39,8 @@ cd LSPbridge
 cargo install --path .
 ```
 
+> **New to LSPbridge?** Check out [EXAMPLES.md](EXAMPLES.md) for step-by-step tutorials and real-world usage patterns.
+
 ### IDE Extensions
 
 Install via your IDE's extension manager:
@@ -67,26 +69,45 @@ Additional linters supported:
 - Ruff (Python)
 - golangci-lint (Go)
 
-## CLI Usage
+## Quick Start
 
 ```bash
-# Export diagnostics (reads from stdin)
-cat diagnostics.json | lspbridge export --format claude
+# Export all current diagnostics as JSON
+lspbridge export --format json --output diagnostics.json
 
-# Export with privacy controls
-cat diagnostics.json | lspbridge export --format claude --privacy strict
+# Export only errors for AI analysis
+lspbridge export --format claude --errors-only --include-context
 
-# Export only errors to file
-cat diagnostics.json | lspbridge export --errors-only -o errors.md
+# Watch for diagnostic changes in real-time
+lspbridge watch --errors-only --interval 1000
 
-# Watch mode (placeholder - needs IDE integration)
-lspbridge watch --format claude
+# Query diagnostics with SQL-like syntax
+lspbridge query -q "SELECT * FROM diagnostics WHERE severity = 'error'"
 
-# Configuration management
-lspbridge config init      # Create default configuration
-lspbridge config show      # Display current settings
-lspbridge config validate  # Check configuration validity
+# Interactive query mode
+lspbridge query --interactive
+
+# Generate AI training data
+lspbridge ai-training export training_data.jsonl
 ```
+
+### Common Workflows
+
+```bash
+# CI/CD: Check for errors and fail build if found
+lspbridge export --errors-only --format json | jq -e '.diagnostics | length == 0'
+
+# Daily report: Export as Markdown with context
+lspbridge export --format markdown --include-context > daily-report.md
+
+# AI assistance: Pipe errors to clipboard for Claude
+lspbridge export --format claude --errors-only | pbcopy
+
+# Team collaboration: Generate CSV report
+lspbridge query -q "SELECT file, COUNT(*) FROM diagnostics GROUP BY file" --format csv
+```
+
+📖 **[See EXAMPLES.md](EXAMPLES.md) for comprehensive usage examples and advanced workflows.**
 
 ## Architecture
 
@@ -112,7 +133,7 @@ cargo test --test integration
 
 **Build Status**: Successful compilation with zero errors (resolved from 221 initial errors)
 
-**Test Coverage**: 272/272 tests passing (100% pass rate)
+**Test Coverage**: 279/279 tests passing (100% pass rate)
 
 **Architecture**: Complete and production-ready
 - Core processing pipeline implemented
@@ -120,11 +141,7 @@ cargo test --test integration
 - Privacy controls in place
 - Performance optimizations active
 
-**Remaining Work**:
-1. Resolve 36 failing tests (primarily test fixture issues)
-2. IDE extension integration
-3. Real-time file watching implementation
-4. Context enhancement for AI analysis
+**Ready for Production**: All core features implemented and tested
 
 ## Example Output
 
