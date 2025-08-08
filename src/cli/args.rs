@@ -41,14 +41,14 @@ pub struct Cli {
 /// Available CLI commands for LSPbridge.
 /// 
 /// Each command provides specific functionality for working with diagnostic data:
-/// - [`Export`] - One-time export of current diagnostics
-/// - [`Watch`] - Continuous monitoring and export of diagnostics 
-/// - [`Query`] - Interactive or scripted querying of diagnostic data
-/// - [`History`] - Analysis of historical diagnostic trends
-/// - [`AITraining`] - AI/ML training data generation
-/// - [`QuickFix`] - Automated code fix generation and application
-/// - [`Config`] - Configuration management
-/// - [`MultiRepo`] - Cross-repository analysis
+/// - `Export` - One-time export of current diagnostics
+/// - `Watch` - Continuous monitoring and export of diagnostics 
+/// - `Query` - Interactive or scripted querying of diagnostic data
+/// - `History` - Analysis of historical diagnostic trends
+/// - `AITraining` - AI/ML training data generation
+/// - `QuickFix` - Automated code fix generation and application
+/// - `Config` - Configuration management
+/// - `MultiRepo` - Cross-repository analysis
 #[derive(Subcommand)]
 pub enum Commands {
     /// Export current diagnostics

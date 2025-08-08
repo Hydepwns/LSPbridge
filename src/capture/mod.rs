@@ -49,6 +49,11 @@ impl DiagnosticsCapture {
         // This will be implemented when privacy policies are fully integrated
     }
     
+    /// Start capturing diagnostics
+    pub async fn start_capture(&self) -> Result<()> {
+        self.service.start_capture().await
+    }
+    
     /// Create a snapshot from diagnostics
     pub fn create_snapshot(&self, diagnostics: Vec<crate::core::Diagnostic>) -> crate::core::DiagnosticSnapshot {
         use crate::core::{DiagnosticSnapshot, SnapshotMetadata, CaptureMethod, EditorInfo, WorkspaceInfo};

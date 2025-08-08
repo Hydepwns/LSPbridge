@@ -53,7 +53,7 @@ impl ExportService {
     /// 
     /// This creates a basic export service that can export diagnostics
     /// without project-specific metadata. For richer exports with build
-    /// system information and project structure, use [`with_project_info`].
+    /// system information and project structure, use `with_project_info()`.
     /// 
     /// # Examples
     /// 

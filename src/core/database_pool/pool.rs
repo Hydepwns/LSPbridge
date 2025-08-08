@@ -17,7 +17,7 @@ pub struct DatabasePool {
     pub(crate) config: PoolConfig,
     manager: ConnectionManager,
     /// Semaphore to limit concurrent connections
-    semaphore: Semaphore,
+    semaphore: Arc<Semaphore>,
 }
 
 impl DatabasePool {
@@ -32,7 +32,7 @@ impl DatabasePool {
         let manager = ConnectionManager::new(config.clone());
         
         let pool = Arc::new(Self {
-            semaphore: Semaphore::new(config.max_connections),
+            semaphore: Arc::new(Semaphore::new(config.max_connections)),
             config: config.clone(),
             manager,
         });
@@ -60,8 +60,8 @@ impl DatabasePool {
     pub async fn get_connection(self: &Arc<Self>) -> Result<PooledConnection> {
         let start_time = Instant::now();
         
-        // Wait for available slot
-        let _permit = timeout(self.config.connection_timeout, self.semaphore.acquire())
+        // Wait for available slot - convert to owned permit
+        let permit = timeout(self.config.connection_timeout, self.semaphore.clone().acquire_owned())
             .await
             .context("Timeout waiting for connection slot")?
             .context("Semaphore closed")?;
@@ -82,7 +82,7 @@ impl DatabasePool {
         self.manager.record_acquisition(wait_time).await;
 
         debug!("Connection acquired in {:?}", wait_time);
-        Ok(PooledConnection::new(conn, Arc::clone(self)))
+        Ok(PooledConnection::new(conn, Arc::clone(self), permit))
     }
 
     /// Execute a closure with a pooled connection

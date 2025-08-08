@@ -9,6 +9,7 @@ pub mod python;
 pub mod java;
 pub mod go;
 pub mod make;
+pub mod monorepo;
 
 /// Trait for build system detection
 pub trait BuildSystemDetector: Send + Sync {
@@ -26,6 +27,14 @@ pub trait BuildSystemDetector: Send + Sync {
 /// Detect the build system for a project
 pub fn detect_build_system(project_root: &Path) -> Result<BuildConfig> {
     let detectors: Vec<Box<dyn BuildSystemDetector>> = vec![
+        // Check for monorepos first as they often have precedence
+        Box::new(monorepo::LernaDetector),
+        Box::new(monorepo::NxDetector),
+        Box::new(monorepo::RushDetector),
+        Box::new(monorepo::YarnWorkspacesDetector),
+        Box::new(monorepo::PnpmWorkspacesDetector),
+        Box::new(monorepo::NpmWorkspacesDetector),
+        // Regular build systems
         Box::new(cargo::CargoDetector),
         Box::new(node::NpmDetector),
         Box::new(node::YarnDetector),

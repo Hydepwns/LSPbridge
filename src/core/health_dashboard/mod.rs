@@ -187,7 +187,7 @@ impl HealthMonitor {
     }
 
     // Dashboard update methods
-    async fn update_dashboard(&self) -> Result<()> {
+    pub async fn update_dashboard(&self) -> Result<()> {
         let mut dashboard = self.dashboard_data.write().await;
 
         // Update timestamp and uptime
@@ -258,7 +258,7 @@ impl HealthMonitor {
         Ok(())
     }
 
-    async fn check_alerts(&self) -> Result<()> {
+    pub async fn check_alerts(&self) -> Result<()> {
         let dashboard = self.dashboard_data.read().await;
         let new_alerts = self.alert_engine.check_components(&dashboard.components);
 
@@ -279,7 +279,7 @@ impl HealthMonitor {
         Ok(())
     }
 
-    async fn generate_recommendations(&self) -> Result<()> {
+    pub async fn generate_recommendations(&self) -> Result<()> {
         if !self.monitoring_config.enable_recommendations {
             return Ok(());
         }

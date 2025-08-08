@@ -14,6 +14,13 @@ pub enum BuildSystem {
     Gradle, // Java
     Go,     // Go
     Make,   // Generic
+    // Monorepo systems
+    Lerna,
+    Nx,
+    Rush,
+    YarnWorkspaces,
+    PnpmWorkspaces,
+    NpmWorkspaces,
     Unknown,
 }
 

@@ -2,6 +2,7 @@ use anyhow::Result;
 use rusqlite::Connection;
 use std::sync::Arc;
 use std::time::Instant;
+use tokio::sync::OwnedSemaphorePermit;
 
 use crate::core::database_pool::{DatabasePool, ConnectionStats};
 
@@ -11,16 +12,19 @@ pub struct PooledConnection {
     pool: Arc<DatabasePool>,
     created_at: Instant,
     used_at: Instant,
+    // Hold the semaphore permit until connection is returned
+    _permit: OwnedSemaphorePermit,
 }
 
 impl PooledConnection {
-    pub(crate) fn new(connection: Connection, pool: Arc<DatabasePool>) -> Self {
+    pub(crate) fn new(connection: Connection, pool: Arc<DatabasePool>, permit: OwnedSemaphorePermit) -> Self {
         let now = Instant::now();
         Self {
             connection: Some(connection),
             pool,
             created_at: now,
             used_at: now,
+            _permit: permit,
         }
     }
 

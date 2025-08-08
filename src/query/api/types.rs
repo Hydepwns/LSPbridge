@@ -48,10 +48,10 @@ pub struct ClientInfo {
 /// Available response formats for query results.
 /// 
 /// Different formats are suitable for different use cases:
-/// - [`Json`] - Machine-readable structured data
-/// - [`Csv`] - Spreadsheet-compatible tabular data
-/// - [`Table`] - Human-readable console table format
-/// - [`Markdown`] - Documentation-friendly markup format
+/// - `Json` - Machine-readable structured data
+/// - `Csv` - Spreadsheet-compatible tabular data
+/// - `Table` - Human-readable console table format
+/// - `Markdown` - Documentation-friendly markup format
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ResponseFormat {
     /// JSON format for programmatic processing

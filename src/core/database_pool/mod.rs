@@ -103,7 +103,6 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore] // TODO: Fix connection pool semaphore design - permits released too early
     async fn test_connection_timeout() {
         let temp_dir = TempDir::new().unwrap();
         let db_path = temp_dir.path().join("test.db");

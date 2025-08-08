@@ -1,4 +1,4 @@
-mod build_system;
+pub mod build_system;
 mod structure_analyzer;
 
 pub use build_system::{BuildCommands, BuildConfig, BuildSystem, BuildSystemDetector};
@@ -101,14 +101,17 @@ pub struct ProjectInfo {
 
 impl ProjectInfo {
     pub fn analyze(project_root: &Path) -> Result<Self> {
-        let build_config = BuildSystemDetector::detect(project_root)?;
+        let build_config = build_system::detectors::detect_build_system(project_root)?;
         let analyzer = StructureAnalyzer::new();
         let structure = analyzer.analyze(project_root)?;
         
         // Simple project type detection based on build system
         let project_type = match build_config.system {
             BuildSystem::Cargo => ProjectType::Rust,
-            BuildSystem::Npm | BuildSystem::Yarn => {
+            BuildSystem::Npm | BuildSystem::Yarn | BuildSystem::Pnpm |
+            BuildSystem::Lerna | BuildSystem::Nx | BuildSystem::Rush | 
+            BuildSystem::YarnWorkspaces | BuildSystem::PnpmWorkspaces | 
+            BuildSystem::NpmWorkspaces => {
                 // TODO: Distinguish between TypeScript and JavaScript
                 ProjectType::TypeScript
             }

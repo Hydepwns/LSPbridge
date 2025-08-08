@@ -47,11 +47,8 @@ impl QueryEngine {
     
     /// Get all diagnostics with optional filtering
     pub async fn get_all_diagnostics(&self) -> Result<Vec<crate::core::Diagnostic>> {
-        // Use a wildcard query to get all diagnostics
-        let _result = self.query("*").await?;
-        
-        // Convert QueryResult rows to Diagnostic objects
-        // Conversion from QueryResult to Diagnostics not yet implemented
+        // Return empty diagnostics for now since storage is not yet implemented
+        // This avoids the SQL parsing error from self.query("*")
         Ok(vec![])
     }
     
