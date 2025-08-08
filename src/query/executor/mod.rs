@@ -51,7 +51,6 @@ use crate::core::{DiagnosticResult};
 use crate::history::HistoryStorage;
 use super::parser::{FromClause, Query};
 use anyhow::{anyhow, Result};
-use std::collections::HashMap;
 use std::time::Instant;
 
 /// Main query executor that coordinates all components
@@ -169,6 +168,9 @@ impl QueryExecutor {
             FromClause::Files => self.execute_files_query(query).await?,
             FromClause::History => self.execute_history_query(query).await?,
             FromClause::Trends => self.execute_trends_query(query).await?,
+            FromClause::Symbols => self.execute_symbols_query(query).await?,
+            FromClause::References => self.execute_references_query(query).await?,
+            FromClause::Projects => self.execute_projects_query(query).await?,
         };
 
         // Apply post-processing
@@ -224,6 +226,39 @@ impl QueryExecutor {
         self.trends_engine.execute(query, history).await
     }
 
+    /// Execute a query against symbol data
+    async fn execute_symbols_query(&self, query: &Query) -> Result<QueryResult> {
+        let diagnostics = self
+            .diagnostic_cache
+            .as_ref()
+            .ok_or_else(|| anyhow!("No diagnostics loaded"))?;
+        
+        let engine = engines::SymbolsEngine::new();
+        engine.execute(query, diagnostics).await
+    }
+
+    /// Execute a query against reference data
+    async fn execute_references_query(&self, query: &Query) -> Result<QueryResult> {
+        let diagnostics = self
+            .diagnostic_cache
+            .as_ref()
+            .ok_or_else(|| anyhow!("No diagnostics loaded"))?;
+        
+        let engine = engines::ReferencesEngine::new();
+        engine.execute(query, diagnostics).await
+    }
+
+    /// Execute a query against project data
+    async fn execute_projects_query(&self, query: &Query) -> Result<QueryResult> {
+        let diagnostics = self
+            .diagnostic_cache
+            .as_ref()
+            .ok_or_else(|| anyhow!("No diagnostics loaded"))?;
+        
+        let engine = engines::ProjectsEngine::new();
+        engine.execute(query, diagnostics).await
+    }
+
     /// Apply post-processing operations (sorting, limiting)
     fn apply_post_processing(&self, mut result: QueryResult, query: &Query) -> Result<QueryResult> {
         // Apply sorting if specified
@@ -234,7 +269,7 @@ impl QueryExecutor {
         // Apply limit if specified
         let total_count = result.rows.len();
         if let Some(limit) = query.limit {
-            result.rows.truncate(limit);
+            result.rows.truncate(limit as usize);
         }
         result.total_count = total_count;
 
