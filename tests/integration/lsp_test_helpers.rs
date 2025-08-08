@@ -273,9 +273,9 @@ mod tests {
         let mock_diags = vec![
             MockDiagnostic {
                 uri: "test.rs".to_string(),
-                range: super::mock_lsp_server::Range {
-                    start: super::mock_lsp_server::Position { line: 0, character: 0 },
-                    end: super::mock_lsp_server::Position { line: 0, character: 10 },
+                range: crate::mock_lsp_server::Range {
+                    start: crate::mock_lsp_server::Position { line: 0, character: 0 },
+                    end: crate::mock_lsp_server::Position { line: 0, character: 10 },
                 },
                 severity: 1,
                 message: "cannot find value `undefined_var` in this scope".to_string(),
