@@ -17,6 +17,10 @@ editors/vscode/out/
 editors/*/out/
 *.vsix
 
+# Claude-specific
+.claude/
+CLAUDE.md
+
 # IDE
 .vscode/
 .idea/
