@@ -1,0 +1,122 @@
+# LSPbridge Benchmark Configuration
+# Comprehensive configuration for performance monitoring and regression detection
+
+[dashboard]
+# Dashboard settings
+name = "LSPbridge Performance Dashboard"
+description = "Automated performance tracking and regression detection for LSPbridge"
+logo_url = "https://raw.githubusercontent.com/your-org/lspbridge/main/assets/logo.png"
+
+[thresholds]
+# Performance regression thresholds
+performance_regression_percent = 15.0
+memory_increase_percent = 20.0
+cache_hit_rate_decrease_percent = 10.0
+cold_start_regression_ms = 100.0
+
+# Warning thresholds (less strict)
+performance_warning_percent = 8.0
+memory_warning_percent = 12.0
+
+[benchmarks]
+# Benchmark execution settings
+sample_size = 100
+warm_up_time = 3
+measurement_time = 5
+confidence_level = 0.95
+
+# Benchmark groups and their priorities
+[benchmarks.groups]
+context_extraction = { priority = 1, target_ms = 50.0, description = "File parsing and semantic analysis" }
+context_ranking = { priority = 1, target_ms = 10.0, description = "Relevance scoring algorithms" }
+diagnostic_prioritization = { priority = 1, target_ms = 20.0, description = "Error categorization and sorting" }
+memory_usage = { priority = 2, target_mb = 100.0, description = "Memory consumption patterns" }
+concurrent_throughput = { priority = 2, target_factor = 2.0, description = "Parallel processing efficiency" }
+cache_performance = { priority = 2, target_hit_rate = 0.8, description = "Cache hit rates and speeds" }
+cold_start = { priority = 3, target_ms = 200.0, description = "Initialization performance" }
+
+[reporting]
+# Report generation settings
+generate_html = true
+generate_markdown = true
+generate_json = true
+generate_charts = true
+include_historical_data = true
+historical_data_points = 50
+
+# Chart configuration
+[reporting.charts]
+theme = "seaborn"
+dpi = 300
+figure_size = [12, 8]
+colors = ["#1f77b4", "#ff7f0e", "#2ca02c", "#d62728", "#9467bd", "#8c564b", "#e377c2"]
+
+[storage]
+# Data storage settings
+max_archive_days = 90
+max_archive_entries = 100
+compress_old_data = true
+backup_to_cloud = false
+
+[alerts]
+# Alert configuration
+enabled = true
+fail_ci_on_regression = true
+notify_on_improvement = true
+notify_on_new_baseline = true
+
+# Alert channels (for future extension)
+[alerts.channels]
+github_issues = { enabled = true, labels = ["performance", "regression"] }
+slack = { enabled = false, webhook_url = "", channel = "#performance" }
+email = { enabled = false, recipients = [] }
+
+[integration]
+# CI/CD integration settings
+run_on_push = true
+run_on_pr = true
+run_on_schedule = "0 2 * * *"  # Daily at 2 AM
+skip_draft_prs = true
+require_approval_for_regressions = true
+
+[comparison]
+# Comparison baseline settings
+baseline_strategy = "main_branch"  # Options: main_branch, tag, commit, manual
+baseline_update_strategy = "auto"   # Options: auto, manual, approved_only
+comparison_window_days = 30
+
+# Performance targets for different scenarios
+[targets]
+development = { performance_factor = 1.2, memory_factor = 1.3 }
+staging = { performance_factor = 1.1, memory_factor = 1.2 }
+production = { performance_factor = 1.0, memory_factor = 1.0 }
+
+[analysis]
+# Advanced analysis settings
+statistical_analysis = true
+trend_analysis = true
+anomaly_detection = true
+performance_profiling = false  # Disabled by default (resource intensive)
+
+# Trend analysis configuration
+[analysis.trends]
+window_size = 10
+sensitivity = 0.1
+min_data_points = 5
+
+[visualization]
+# Visualization settings
+interactive_charts = true
+export_formats = ["png", "svg", "pdf"]
+include_raw_data = true
+responsive_design = true
+
+# Chart types to generate
+[visualization.charts]
+performance_trends = true
+group_comparisons = true
+regression_analysis = true
+memory_usage = true
+cache_efficiency = true
+concurrent_scaling = true
+historical_overview = true
