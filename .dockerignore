@@ -1,0 +1,46 @@
+# Git files
+.git
+.gitignore
+
+# Build artifacts
+target/
+Cargo.lock
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Documentation
+docs/
+*.md
+LICENSE
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+.travis.yml
+
+# Test data
+tests/fixtures/large_files/
+*.log
+
+# Benchmarks
+benches/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.bak
+*.old
+
+# Coverage reports
+*.profraw
+*.profdata
+lcov.info
+coverage/
