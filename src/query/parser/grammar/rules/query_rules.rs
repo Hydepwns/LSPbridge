@@ -55,12 +55,12 @@ impl<'a> QueryRuleParser<'a> {
     fn validate_required_clauses(&self, query: &Query) -> ParseResult<()> {
         // SELECT and FROM are required
         match query.select {
-            SelectClause::All | SelectClause::Count | SelectClause::Fields(_) => {}
+            SelectClause::All | SelectClause::Count | SelectClause::Fields(_) | SelectClause::Aggregations(_) => {}
         }
         
         match query.from {
             FromClause::Diagnostics | FromClause::Files | FromClause::Symbols | 
-            FromClause::References | FromClause::Projects => {}
+            FromClause::References | FromClause::Projects | FromClause::History | FromClause::Trends => {}
         }
         
         Ok(())
@@ -78,7 +78,7 @@ impl<'a> QueryRuleParser<'a> {
                         reason: "Cannot use SELECT * with GROUP BY".to_string(),
                     });
                 }
-                SelectClause::Count | SelectClause::Fields(_) => {}
+                SelectClause::Count | SelectClause::Fields(_) | SelectClause::Aggregations(_) => {}
             }
         }
         
@@ -101,7 +101,7 @@ impl<'a> QueryRuleParser<'a> {
         if let Some(limit) = query.limit {
             if limit == 0 {
                 return Err(ParseError::InvalidLimit {
-                    value: limit,
+                    limit,
                     reason: "LIMIT must be greater than 0".to_string(),
                 });
             }
@@ -121,9 +121,7 @@ impl<'a> QueryRuleParser<'a> {
         if let (Some(start), Some(end)) = (&time_range.start, &time_range.end) {
             if start >= end {
                 return Err(ParseError::InvalidTimeRange {
-                    start: start.to_string(),
-                    end: end.to_string(),
-                    reason: "Start time must be before end time".to_string(),
+                    reason: format!("Start time must be before end time: {start} >= {end}"),
                 });
             }
         }
@@ -157,6 +155,12 @@ impl<'a> QueryRuleParser<'a> {
                             reason: "Time value must be greater than 0".to_string(),
                         });
                     }
+                }
+                RelativeTime::LastCommit => {
+                    // LastCommit is always valid
+                }
+                RelativeTime::SinceCommit(_commit_hash) => {
+                    // Commit hash validation would go here if needed
                 }
             }
         }

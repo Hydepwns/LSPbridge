@@ -51,35 +51,35 @@ impl fmt::Display for LspBridgeError {
         match self {
             Self::Io { path, operation, source } => {
                 if let Some(p) = path {
-                    write!(f, "IO error during {} on {:?}: {}", operation, p, source)
+                    write!(f, "IO error during {operation} on {p:?}: {source}")
                 } else {
-                    write!(f, "IO error during {}: {}", operation, source)
+                    write!(f, "IO error during {operation}: {source}")
                 }
             }
             Self::Config { message, path } => {
                 if let Some(p) = path {
-                    write!(f, "Configuration error in {:?}: {}", p, message)
+                    write!(f, "Configuration error in {p:?}: {message}")
                 } else {
-                    write!(f, "Configuration error: {}", message)
+                    write!(f, "Configuration error: {message}")
                 }
             }
             Self::Json { context, source } => {
-                write!(f, "JSON parsing error in {}: {}", context, source)
+                write!(f, "JSON parsing error in {context}: {source}")
             }
             Self::ProjectAnalysis { message, path } => {
-                write!(f, "Project analysis error in {:?}: {}", path, message)
+                write!(f, "Project analysis error in {path:?}: {message}")
             }
             Self::LspCommunication { message } => {
-                write!(f, "LSP communication error: {}", message)
+                write!(f, "LSP communication error: {message}")
             }
             Self::Database { operation, source } => {
-                write!(f, "Database error during {}: {}", operation, source)
+                write!(f, "Database error during {operation}: {source}")
             }
             Self::Validation { field, reason } => {
-                write!(f, "Validation error for field '{}': {}", field, reason)
+                write!(f, "Validation error for field '{field}': {reason}")
             }
             Self::Other { message, source } => {
-                write!(f, "{}: {}", message, source)
+                write!(f, "{message}: {source}")
             }
         }
     }

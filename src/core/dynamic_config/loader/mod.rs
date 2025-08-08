@@ -11,7 +11,6 @@ use crate::core::errors::ConfigError;
 use anyhow::Result;
 use tracing;
 use async_trait::async_trait;
-use std::path::Path;
 
 /// Trait for configuration loaders
 #[async_trait]

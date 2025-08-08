@@ -52,12 +52,11 @@ pub use types::{
 
 use crate::core::errors::ConfigError;
 use loader::{CombinedLoader, EnvLoader, FileLoader};
-use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::SystemTime;
 use tokio::sync::{broadcast, RwLock};
-use tracing::{debug, error, info, warn};
+use tracing::{debug, info, warn};
 use validation::ConfigValidationEngine;
 use watchers::{ConfigChangeNotifier, FileWatcher};
 
@@ -82,7 +81,7 @@ impl DynamicConfigManager {
     /// This will attempt to load configuration from the specified file.
     /// If the file doesn't exist, a default configuration will be created and saved.
     pub async fn new(config_file: PathBuf) -> Result<Self, ConfigError> {
-        let mut loader = CombinedLoader::new()
+        let loader = CombinedLoader::new()
             .add_loader(Box::new(FileLoader::new(config_file.clone())))
             .add_loader(Box::new(EnvLoader::default()));
 
@@ -91,6 +90,11 @@ impl DynamicConfigManager {
         
         // Validate the loaded configuration
         validator.validate(&config).await?;
+        
+        // If the config file doesn't exist, save the default config
+        if !config_file.exists() {
+            loader.save(&config).await?;
+        }
 
         let (change_notifier, _) = ConfigChangeNotifier::new(100);
         let watcher = Some(FileWatcher::new(config_file));
@@ -156,17 +160,23 @@ impl DynamicConfigManager {
         let mut config = self.config.write().await;
         let old_config = config.clone();
 
-        // Apply the update
-        updater(&mut *config)?;
+        // Clone config for updating
+        let mut new_config = config.clone();
+        
+        // Apply the update to the clone
+        updater(&mut new_config)?;
 
         // Validate the updated config
-        self.validator.validate(&*config).await?;
+        self.validator.validate(&new_config).await?;
+
+        // Only apply changes if validation passed
+        *config = new_config;
 
         // Calculate changes
-        let changes = self.calculate_changes(&old_config, &*config);
+        let changes = self.calculate_changes(&old_config, &config);
 
         // Save to storage
-        self.loader.save(&*config).await?;
+        self.loader.save(&config).await?;
 
         // Notify watchers
         for change in &changes {
@@ -271,7 +281,7 @@ impl DynamicConfigManager {
     /// Validate the current configuration
     pub async fn validate_current(&self) -> Result<(), ConfigError> {
         let config = self.config.read().await;
-        self.validator.validate(&*config).await
+        self.validator.validate(&config).await
     }
 
     /// Calculate differences between two configurations

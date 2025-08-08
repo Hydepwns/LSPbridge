@@ -156,7 +156,7 @@ impl PrivacyFilter {
         let dir_path = parts[..parts.len().saturating_sub(1)].join("/");
         let dir_hash = self.simple_hash(&dir_path);
 
-        format!("[DIR_{}]/{}", dir_hash, filename)
+        format!("[DIR_{dir_hash}]/{filename}")
     }
 
     fn simple_hash(&self, input: &str) -> String {
@@ -230,7 +230,7 @@ impl PrivacyFilter {
         for diagnostic in diagnostics {
             file_groups
                 .entry(diagnostic.file.clone())
-                .or_insert_with(Vec::new)
+                .or_default()
                 .push(diagnostic);
         }
 
@@ -286,13 +286,13 @@ impl PrivacyFilterTrait for PrivacyFilter {
                     }
                     Err(_) => {
                         // Invalid pattern - log warning but continue processing
-                        eprintln!("Warning: Invalid glob pattern ignored: {}", pattern);
+                        eprintln!("Warning: Invalid glob pattern ignored: {pattern}");
                         continue;
                     }
                 }
             } else {
                 // Unsafe pattern - log warning and skip
-                eprintln!("Warning: Potentially unsafe glob pattern ignored: {}", pattern);
+                eprintln!("Warning: Potentially unsafe glob pattern ignored: {pattern}");
                 continue;
             }
         }

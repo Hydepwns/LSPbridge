@@ -4,7 +4,6 @@
 //! throughout the codebase.
 
 use crate::error::{LspBridgeError, LspResult, ErrorContext};
-use anyhow::{Context, Result};
 use std::fs;
 use std::path::Path;
 
@@ -29,9 +28,9 @@ pub fn process_project_files(project_root: &Path) -> LspResult<Vec<String>> {
     let config_path = project_root.join("config.toml");
     let config = read_config_file(&config_path)?;
     
-    let parsed_config: toml::Value = toml::from_str(&config)
+    let _parsed_config: toml::Value = toml::from_str(&config)
         .map_err(|e| LspBridgeError::Config {
-            message: format!("Invalid TOML syntax: {}", e),
+            message: format!("Invalid TOML syntax: {e}"),
             path: Some(config_path.clone()),
         })?;
     
@@ -110,7 +109,7 @@ pub fn validate_project_name(name: &str) -> LspResult<()> {
 pub fn parse_json_diagnostic(json: &str, source_file: &Path) -> LspResult<serde_json::Value> {
     serde_json::from_str(json)
         .map_err(|e| LspBridgeError::Json {
-            context: format!("diagnostic data from {:?}", source_file),
+            context: format!("diagnostic data from {source_file:?}"),
             source: e,
         })
 }

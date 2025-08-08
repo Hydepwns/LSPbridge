@@ -8,7 +8,6 @@ pub use schema::ConfigValidator;
 
 use super::types::DynamicConfig;
 use crate::core::errors::ConfigError;
-use std::collections::HashMap;
 
 /// Main configuration validator
 pub struct ConfigValidationEngine {

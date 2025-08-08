@@ -23,9 +23,8 @@ pub mod detectors;
 pub mod types;
 
 pub use types::*;
-pub use detectors::detect_build_system;
 
-use anyhow::{Context, Result};
+use anyhow::Result;
 use std::path::Path;
 
 /// Main entry point for build system detection
@@ -92,6 +91,8 @@ ci = "check --all-features"
     }
 }"#;
         fs::write(temp_dir.path().join("package.json"), package_json).unwrap();
+        // NPM detector requires package-lock.json
+        fs::write(temp_dir.path().join("package-lock.json"), "{}").unwrap();
 
         let config = BuildSystemDetector::detect(temp_dir.path()).unwrap();
         assert_eq!(config.system, BuildSystem::Npm);
@@ -134,6 +135,8 @@ pytest = "^6.2.5"
 serve = "myapp:serve"
 "#;
         fs::write(temp_dir.path().join("pyproject.toml"), pyproject).unwrap();
+        // Poetry detector requires poetry.lock
+        fs::write(temp_dir.path().join("poetry.lock"), "").unwrap();
 
         let config = BuildSystemDetector::detect(temp_dir.path()).unwrap();
         assert_eq!(config.system, BuildSystem::Poetry);

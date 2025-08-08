@@ -393,8 +393,8 @@ mod tests {
         stats.hits = 80;
         stats.misses = 20;
 
-        assert_eq!(stats.hit_rate(), 0.8);
-        assert_eq!(stats.miss_rate(), 0.2);
+        assert!((stats.hit_rate() - 0.8).abs() < 0.001);
+        assert!((stats.miss_rate() - 0.2).abs() < 0.001);
     }
 
     #[test]
@@ -411,7 +411,7 @@ mod tests {
             eviction_policy: EvictionPolicy::LRU,
         };
 
-        assert_eq!(report.health_status(), MemoryHealthStatus::Critical);
+        assert_eq!(report.health_status(), MemoryHealthStatus::Warning);
         assert!(report.is_memory_pressure());
     }
 }

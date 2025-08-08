@@ -87,7 +87,7 @@ impl WorkspaceFilter {
 
         // Handle patterns that should match anywhere
         if !pattern.starts_with('/') && !pattern.starts_with("**/") {
-            pattern = format!("**/{}", pattern);
+            pattern = format!("**/{pattern}");
         } else if pattern.starts_with('/') {
             // Remove leading slash for absolute patterns
             pattern.remove(0);

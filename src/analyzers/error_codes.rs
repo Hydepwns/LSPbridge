@@ -261,10 +261,10 @@ impl ErrorCode {
 impl fmt::Display for ErrorCode {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            ErrorCode::TypeScript(ts) => write!(f, "{}", ts),
-            ErrorCode::Rust(rust) => write!(f, "{}", rust),
-            ErrorCode::Python(py) => write!(f, "{:?}", py),
-            ErrorCode::Custom(s) => write!(f, "{}", s),
+            ErrorCode::TypeScript(ts) => write!(f, "{ts}"),
+            ErrorCode::Rust(rust) => write!(f, "{rust}"),
+            ErrorCode::Python(py) => write!(f, "{py:?}"),
+            ErrorCode::Custom(s) => write!(f, "{s}"),
         }
     }
 }

@@ -23,7 +23,7 @@ impl MigrationRunner {
             conn.execute_batch(self.migrations["1.0"])
                 .map_err(|e| DatabaseError::Sqlite {
                     operation: "run_migrations".to_string(),
-                    message: format!("Failed to run initial migration: {}", e),
+                    message: format!("Failed to run initial migration: {e}"),
                     source: e,
                 })?;
             

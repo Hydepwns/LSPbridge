@@ -8,7 +8,7 @@ use anyhow::Result;
 use once_cell::sync::Lazy;
 use regex::Regex;
 use std::collections::HashMap;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use walkdir::WalkDir;
 
 // Lazy static initialization of type patterns

@@ -89,7 +89,7 @@ impl Value {
             Value::Integer(i) => i.to_string(),
             Value::Boolean(b) => b.to_string(),
             Value::Path(p) => p.display().to_string(),
-            Value::Severity(s) => format!("{:?}", s),
+            Value::Severity(s) => format!("{s:?}"),
             Value::Array(arr) => format!(
                 "[{}]",
                 arr.iter()

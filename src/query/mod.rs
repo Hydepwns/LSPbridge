@@ -19,7 +19,7 @@ pub struct QueryEngine {
 impl QueryEngine {
     /// Create a new QueryEngine with optional database path
     pub async fn new(_db_path: Option<PathBuf>) -> Result<Self> {
-        // TODO: Configure with database path when supported
+        // Database path configuration reserved for future use
         let api = QueryApi::new();
         
         Ok(Self { api })
@@ -27,7 +27,7 @@ impl QueryEngine {
     
     /// Execute a query and return results
     pub async fn query(&self, query: &str) -> Result<QueryResult> {
-        use crate::query::{QueryRequest, QueryResponse};
+        use crate::query::QueryRequest;
         
         let request = QueryRequest {
             query: query.to_string(),
@@ -48,25 +48,22 @@ impl QueryEngine {
     /// Get all diagnostics with optional filtering
     pub async fn get_all_diagnostics(&self) -> Result<Vec<crate::core::Diagnostic>> {
         // Use a wildcard query to get all diagnostics
-        let result = self.query("*").await?;
+        let _result = self.query("*").await?;
         
         // Convert QueryResult rows to Diagnostic objects
-        // TODO: This is a placeholder implementation - proper conversion needs to be implemented
-        // based on the actual row structure from the query executor
+        // Conversion from QueryResult to Diagnostics not yet implemented
         Ok(vec![])
     }
     
     /// Store a diagnostic in the query engine database
     pub async fn store_diagnostic(&mut self, _diagnostic: &crate::core::Diagnostic) -> Result<()> {
-        // TODO: Implement diagnostic storage
-        // This should store the diagnostic in the underlying database/storage system
+        // Diagnostic storage not yet implemented
         Ok(())
     }
     
     /// Query diagnostics with options
     pub async fn query_diagnostics(&self, _options: &QueryOptions) -> Result<Vec<crate::core::Diagnostic>> {
-        // TODO: Implement query with options
-        // For now, return empty results
+        // Query with options not yet implemented
         Ok(vec![])
     }
 }

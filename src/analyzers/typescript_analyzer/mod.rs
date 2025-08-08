@@ -23,6 +23,12 @@ pub struct TypeScriptAnalyzer {
 
 impl AnalyzerBase for TypeScriptAnalyzer {}
 
+impl Default for TypeScriptAnalyzer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TypeScriptAnalyzer {
     pub fn new() -> Self {
         Self {

@@ -54,12 +54,12 @@ impl Command for QueryCommand {
             processed
                 .diagnostics
                 .entry(file_path)
-                .or_insert_with(Vec::new)
+                .or_default()
                 .push(diagnostic);
         }
 
         // Update summary
-        for (_, diags) in &processed.diagnostics {
+        for diags in processed.diagnostics.values() {
             for diag in diags {
                 processed.summary.total_diagnostics += 1;
                 match diag.severity {
@@ -99,7 +99,7 @@ impl Command for QueryCommand {
             if let Some(output_path) = &self.args.output {
                 std::fs::write(output_path, formatted)?;
             } else {
-                println!("{}", formatted);
+                println!("{formatted}");
             }
         }
 

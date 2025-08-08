@@ -4,10 +4,9 @@ pub mod file_watcher;
 
 pub use file_watcher::FileWatcher;
 
-use super::types::{ConfigChange, DynamicConfig};
+use super::types::ConfigChange;
 use crate::core::errors::ConfigError;
 use async_trait::async_trait;
-use std::path::Path;
 use tokio::sync::broadcast;
 
 /// Trait for configuration watchers

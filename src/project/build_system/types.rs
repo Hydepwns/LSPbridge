@@ -28,6 +28,7 @@ pub struct BuildConfig {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Default)]
 pub struct BuildCommands {
     pub build: Option<String>,
     pub test: Option<String>,
@@ -38,19 +39,6 @@ pub struct BuildCommands {
     pub custom: HashMap<String, String>,
 }
 
-impl Default for BuildCommands {
-    fn default() -> Self {
-        Self {
-            build: None,
-            test: None,
-            lint: None,
-            format: None,
-            run: None,
-            clean: None,
-            custom: HashMap::new(),
-        }
-    }
-}
 
 impl BuildConfig {
     /// Get standard command by name

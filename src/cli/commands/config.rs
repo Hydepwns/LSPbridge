@@ -30,7 +30,7 @@ impl Command for ConfigCommand {
             }
 
             ConfigAction::Show => match fs::read_to_string(&config_path).await {
-                Ok(content) => println!("{}", content),
+                Ok(content) => println!("{content}"),
                 Err(_) => println!("No configuration file found. Use 'config init' to create one."),
             },
 

@@ -4,6 +4,12 @@ use crate::core::{Diagnostic, SemanticContext};
 
 pub struct ImportAnalyzer;
 
+impl Default for ImportAnalyzer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ImportAnalyzer {
     pub fn new() -> Self {
         Self

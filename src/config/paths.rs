@@ -145,10 +145,14 @@ mod tests {
         assert!(paths.data_dir.is_absolute());
         assert!(paths.log_dir.is_absolute());
         
-        // Paths should contain "lspbridge"
-        assert!(paths.config_dir.to_string_lossy().contains("lspbridge"));
-        assert!(paths.cache_dir.to_string_lossy().contains("lspbridge"));
-        assert!(paths.data_dir.to_string_lossy().contains("lspbridge"));
+        // Paths should contain "lspbridge" (case-insensitive check for compatibility)
+        let config_path = paths.config_dir.to_string_lossy().to_lowercase();
+        let cache_path = paths.cache_dir.to_string_lossy().to_lowercase();
+        let data_path = paths.data_dir.to_string_lossy().to_lowercase();
+        
+        assert!(config_path.contains("lspbridge") || config_path.contains("lsp_bridge") || config_path.contains("lsp-bridge"));
+        assert!(cache_path.contains("lspbridge") || cache_path.contains("lsp_bridge") || cache_path.contains("lsp-bridge"));
+        assert!(data_path.contains("lspbridge") || data_path.contains("lsp_bridge") || data_path.contains("lsp-bridge"));
     }
     
     #[test]

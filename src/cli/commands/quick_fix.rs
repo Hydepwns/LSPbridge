@@ -169,7 +169,7 @@ impl QuickFixCommand {
             );
             let session_id = rollback_state.session_id.clone();
             rollback_manager.save_state(rollback_state).await?;
-            println!("✅ Fixes applied. Rollback session: {}", session_id);
+            println!("✅ Fixes applied. Rollback session: {session_id}");
         }
 
         // Verify if requested
@@ -188,9 +188,9 @@ impl QuickFixCommand {
         let successful = results.iter().filter(|(r, _)| r.success).count();
         let failed = results.len() - successful;
         println!("\n📊 Summary:");
-        println!("  ✓ Successfully applied: {}", successful);
+        println!("  ✓ Successfully applied: {successful}");
         if failed > 0 {
-            println!("  ✗ Failed: {}", failed);
+            println!("  ✗ Failed: {failed}");
         }
 
         Ok(())
@@ -228,7 +228,7 @@ impl QuickFixCommand {
             match session_id {
                 Some(id) => {
                     rollback_manager.rollback(&id).await?;
-                    println!("✅ Rolled back session: {}", id);
+                    println!("✅ Rolled back session: {id}");
                 }
                 None => {
                     rollback_manager.rollback_latest().await?;
@@ -259,7 +259,7 @@ impl QuickFixCommand {
         match format {
             OutputFormat::Json => {
                 let json = serde_json::to_string_pretty(&analysis_results)?;
-                println!("{}", json);
+                println!("{json}");
             }
             OutputFormat::Markdown => {
                 println!("# Fix Confidence Analysis\n");

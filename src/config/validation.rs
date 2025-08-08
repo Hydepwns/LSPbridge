@@ -1,7 +1,6 @@
 //! Configuration validation for LSPbridge
 
 use anyhow::{Context, Result};
-use crate::error::{LspBridgeError, LspResult};
 use std::path::Path;
 use std::fs;
 
@@ -27,6 +26,12 @@ pub enum ConfigValidationError {
 /// Validates the complete application configuration on startup
 pub struct ConfigValidator {
     config_path: Option<String>,
+}
+
+impl Default for ConfigValidator {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl ConfigValidator {
@@ -71,7 +76,7 @@ impl ConfigValidator {
         for (var, required) in env_vars {
             match std::env::var(var) {
                 Ok(value) => {
-                    report.add_info(format!("Environment variable {} = {}", var, value));
+                    report.add_info(format!("Environment variable {var} = {value}"));
                 }
                 Err(_) if required => {
                     report.add_error(ConfigValidationError::MissingField {
@@ -79,7 +84,7 @@ impl ConfigValidator {
                     });
                 }
                 Err(_) => {
-                    report.add_warning(format!("Optional environment variable {} not set", var));
+                    report.add_warning(format!("Optional environment variable {var} not set"));
                 }
             }
         }
@@ -108,25 +113,25 @@ impl ConfigValidator {
                 match fs::write(&test_file, "test") {
                     Ok(_) => {
                         let _ = fs::remove_file(test_file);
-                        report.add_success(format!("{} directory is writable: {:?}", name, dir));
+                        report.add_success(format!("{name} directory is writable: {dir:?}"));
                     }
                     Err(e) => {
                         report.add_error(ConfigValidationError::DirectoryNotAccessible {
                             path: dir.display().to_string(),
-                            reason: format!("Not writable: {}", e),
+                            reason: format!("Not writable: {e}"),
                         });
                     }
                 }
             } else {
                 // Try to create it
-                match fs::create_dir_all(&dir) {
+                match fs::create_dir_all(dir) {
                     Ok(_) => {
-                        report.add_success(format!("{} directory created: {:?}", name, dir));
+                        report.add_success(format!("{name} directory created: {dir:?}"));
                     }
                     Err(e) => {
                         report.add_error(ConfigValidationError::DirectoryNotAccessible {
                             path: dir.display().to_string(),
-                            reason: format!("Cannot create: {}", e),
+                            reason: format!("Cannot create: {e}"),
                         });
                     }
                 }
@@ -153,7 +158,7 @@ impl ConfigValidator {
         // Try to parse as TOML
         match toml::from_str::<toml::Value>(&content) {
             Ok(config) => {
-                report.add_success(format!("Configuration file is valid TOML: {}", path));
+                report.add_success(format!("Configuration file is valid TOML: {path}"));
                 
                 // Validate specific fields
                 self.validate_config_fields(&config, report);
@@ -190,7 +195,7 @@ impl ConfigValidator {
                     if !valid_levels.contains(&level) {
                         report.add_error(ConfigValidationError::InvalidValue {
                             field: "logging.level".to_string(),
-                            reason: format!("Invalid log level '{}', must be one of: {:?}", level, valid_levels),
+                            reason: format!("Invalid log level '{level}', must be one of: {valid_levels:?}"),
                         });
                     }
                 }
@@ -260,28 +265,28 @@ impl ValidationReport {
         if !self.successes.is_empty() {
             println!("\n✅ Successes:");
             for success in &self.successes {
-                println!("   {}", success);
+                println!("   {success}");
             }
         }
         
         if !self.info.is_empty() {
             println!("\nℹ️  Information:");
             for info in &self.info {
-                println!("   {}", info);
+                println!("   {info}");
             }
         }
         
         if !self.warnings.is_empty() {
             println!("\n⚠️  Warnings:");
             for warning in &self.warnings {
-                println!("   {}", warning);
+                println!("   {warning}");
             }
         }
         
         if !self.errors.is_empty() {
             println!("\n❌ Errors:");
             for error in &self.errors {
-                println!("   {}", error);
+                println!("   {error}");
             }
         }
         

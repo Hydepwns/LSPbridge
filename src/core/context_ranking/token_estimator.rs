@@ -49,7 +49,7 @@ impl<'a> TokenEstimator<'a> {
             cost += 3; // Small cost for type annotation
         }
         
-        if let Some(init) = &var_ctx.initial_value {
+        if let Some(init) = &var_ctx.value {
             // Rough estimate based on initialization string length
             cost += (init.len() / 10).min(10);
         }

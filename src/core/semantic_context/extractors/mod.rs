@@ -101,7 +101,7 @@ pub mod utils {
         node: Node<'a>,
         line: u32,
         column: u32,
-        source: &str,
+        _source: &str,
     ) -> Option<Node<'a>> {
         let mut cursor = node.walk();
         let mut result = None;

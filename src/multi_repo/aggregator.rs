@@ -132,8 +132,8 @@ impl DiagnosticAggregator {
                         });
                     }
                 }
-                Ok(Err(e)) => eprintln!("Failed to collect diagnostics: {}", e),
-                Err(e) => eprintln!("Task failed: {}", e),
+                Ok(Err(e)) => eprintln!("Failed to collect diagnostics: {e}"),
+                Err(e) => eprintln!("Task failed: {e}"),
             }
         }
 
@@ -205,8 +205,8 @@ impl DiagnosticAggregator {
     fn check_relation(
         diag1: &Diagnostic,
         diag2: &Diagnostic,
-        repo1: &str,
-        repo2: &str,
+        _repo1: &str,
+        _repo2: &str,
     ) -> Option<DiagnosticRelation> {
         // Check for same error patterns
         if Self::is_same_pattern(diag1, diag2) {

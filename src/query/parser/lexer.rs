@@ -13,8 +13,9 @@ pub enum TokenType {
     Where,
     And,
     Or,
-    GroupBy,
-    OrderBy,
+    Group,
+    By,
+    Order,
     Limit,
 
     // Aggregation functions
@@ -98,9 +99,9 @@ impl Lexer {
         keywords.insert("where".to_string(), TokenType::Where);
         keywords.insert("and".to_string(), TokenType::And);
         keywords.insert("or".to_string(), TokenType::Or);
-        keywords.insert("group".to_string(), TokenType::GroupBy);
-        keywords.insert("by".to_string(), TokenType::GroupBy);
-        keywords.insert("order".to_string(), TokenType::OrderBy);
+        keywords.insert("group".to_string(), TokenType::Group);
+        keywords.insert("by".to_string(), TokenType::By);
+        keywords.insert("order".to_string(), TokenType::Order);
         keywords.insert("limit".to_string(), TokenType::Limit);
 
         // Aggregation functions
@@ -351,8 +352,9 @@ impl fmt::Display for TokenType {
             TokenType::Where => write!(f, "WHERE"),
             TokenType::And => write!(f, "AND"),
             TokenType::Or => write!(f, "OR"),
-            TokenType::GroupBy => write!(f, "GROUP BY"),
-            TokenType::OrderBy => write!(f, "ORDER BY"),
+            TokenType::Group => write!(f, "GROUP"),
+            TokenType::By => write!(f, "BY"),
+            TokenType::Order => write!(f, "ORDER"),
             TokenType::Limit => write!(f, "LIMIT"),
             TokenType::Count => write!(f, "COUNT"),
             TokenType::Sum => write!(f, "SUM"),
@@ -385,9 +387,9 @@ impl fmt::Display for TokenType {
             TokenType::Semicolon => write!(f, ";"),
             TokenType::Asterisk => write!(f, "*"),
             TokenType::Dot => write!(f, "."),
-            TokenType::Number(n) => write!(f, "{}", n),
-            TokenType::String(s) => write!(f, "\"{}\"", s),
-            TokenType::Identifier(id) => write!(f, "{}", id),
+            TokenType::Number(n) => write!(f, "{n}"),
+            TokenType::String(s) => write!(f, "\"{s}\""),
+            TokenType::Identifier(id) => write!(f, "{id}"),
             TokenType::Eof => write!(f, "EOF"),
         }
     }

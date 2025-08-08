@@ -3,6 +3,12 @@ use regex::Regex;
 
 pub struct TypeInferenceHelper;
 
+impl Default for TypeInferenceHelper {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TypeInferenceHelper {
     pub fn new() -> Self {
         Self

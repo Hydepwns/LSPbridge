@@ -73,6 +73,7 @@ pub struct VariableContext {
 
 /// Call hierarchy information
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Default)]
 pub struct CallHierarchy {
     /// Functions that call the current function
     pub callers: Vec<FunctionCall>,
@@ -118,7 +119,7 @@ pub enum DependencyType {
 }
 
 /// Supported programming languages
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Language {
     TypeScript,
     JavaScript,
@@ -143,12 +144,3 @@ impl Default for SemanticContext {
     }
 }
 
-impl Default for CallHierarchy {
-    fn default() -> Self {
-        Self {
-            callers: Vec::new(),
-            callees: Vec::new(),
-            depth: 0,
-        }
-    }
-}

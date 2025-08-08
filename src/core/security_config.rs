@@ -4,10 +4,10 @@
 /// secure-by-default settings for production environments.
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
-use std::time::Duration;
 
 /// Comprehensive security configuration for LSPbridge
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Default)]
 pub struct SecurityConfig {
     /// Rate limiting configuration
     pub rate_limiting: RateLimitSecurityConfig,
@@ -150,7 +150,7 @@ pub struct PrivacySecurityConfig {
     pub secure_temp_files: bool,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, clap::ValueEnum)]
 pub enum PrivacyLevel {
     /// Maximum privacy protection
     Strict,
@@ -366,19 +366,6 @@ impl Default for AuditConfig {
     }
 }
 
-impl Default for SecurityConfig {
-    fn default() -> Self {
-        Self {
-            rate_limiting: RateLimitSecurityConfig::default(),
-            input_validation: InputValidationConfig::default(),
-            privacy: PrivacySecurityConfig::default(),
-            file_access: FileAccessConfig::default(),
-            network: NetworkSecurityConfig::default(),
-            resource_limits: ResourceLimitsConfig::default(),
-            audit: AuditConfig::default(),
-        }
-    }
-}
 
 impl SecurityConfig {
     /// Create a new security configuration with production-ready defaults

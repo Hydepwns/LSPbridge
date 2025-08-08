@@ -233,10 +233,10 @@ impl From<RelationTypeArg> for crate::multi_repo::registry::RelationType {
     fn from(arg: RelationTypeArg) -> Self {
         match arg {
             RelationTypeArg::Dependency => crate::multi_repo::registry::RelationType::Dependency,
-            RelationTypeArg::SharedType => crate::multi_repo::registry::RelationType::SharedType,
+            RelationTypeArg::SharedType => crate::multi_repo::registry::RelationType::SharedTypes,
             RelationTypeArg::MonorepoSibling => crate::multi_repo::registry::RelationType::MonorepoSibling,
-            RelationTypeArg::Fork => crate::multi_repo::registry::RelationType::Fork,
-            RelationTypeArg::Template => crate::multi_repo::registry::RelationType::Template,
+            RelationTypeArg::Fork => crate::multi_repo::registry::RelationType::ApiRelation,
+            RelationTypeArg::Template => crate::multi_repo::registry::RelationType::DevDependency,
         }
     }
 }

@@ -4,6 +4,12 @@ use crate::core::{Diagnostic, SemanticContext};
 
 pub struct MoveSemanticsAnalyzer;
 
+impl Default for MoveSemanticsAnalyzer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl MoveSemanticsAnalyzer {
     pub fn new() -> Self {
         Self

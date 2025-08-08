@@ -1,11 +1,12 @@
 use anyhow::{Context, Result};
 use chrono::{DateTime, Utc};
+use clap::ValueEnum;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 use crate::ai_training::{FixConfidence, TrainingDataset, TrainingPair};
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Hash, ValueEnum)]
 pub enum FixQuality {
     Perfect,    // Fixes all issues correctly
     Good,       // Fixes main issue but may have minor issues

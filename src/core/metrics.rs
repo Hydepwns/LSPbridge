@@ -401,7 +401,7 @@ impl MetricsCollector {
         let metric_families = self.registry.gather();
         encoder
             .encode_to_string(&metric_families)
-            .unwrap_or_else(|e| format!("Error encoding metrics: {}", e))
+            .unwrap_or_else(|e| format!("Error encoding metrics: {e}"))
     }
 
     pub async fn get_performance_summary(&self) -> PerformanceSummary {

@@ -2,7 +2,6 @@
 
 use super::super::types::DynamicConfig;
 use crate::core::errors::ConfigError;
-use std::path::Path;
 use tracing::debug;
 
 /// Schema-based configuration validator

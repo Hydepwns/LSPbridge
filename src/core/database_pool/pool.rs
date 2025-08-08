@@ -8,7 +8,7 @@ use tracing::{debug, info};
 
 use crate::core::database_pool::{
     connection::PooledConnection,
-    manager::{ConnectionManager, InternalConnection},
+    manager::ConnectionManager,
     types::{PoolConfig, PoolStats},
 };
 
@@ -26,7 +26,7 @@ impl DatabasePool {
         // Ensure database directory exists
         if let Some(parent) = config.db_path.parent() {
             tokio::fs::create_dir_all(parent).await
-                .with_context(|| format!("Failed to create database directory: {:?}", parent))?;
+                .with_context(|| format!("Failed to create database directory: {parent:?}"))?;
         }
 
         let manager = ConnectionManager::new(config.clone());

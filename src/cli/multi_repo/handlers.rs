@@ -3,7 +3,7 @@
 //! This module contains the implementation of all multi-repository command handlers,
 //! including repository registration, listing, analysis, and team management.
 
-use super::types::{AssignmentStatusArg, MultiRepoCommand, OutputFormat, PriorityArg, RelationTypeArg, TeamCommand, TeamRoleArg};
+use super::types::{MultiRepoCommand, OutputFormat, RelationTypeArg, TeamCommand};
 use anyhow::{Context, Result};
 use colored::Colorize;
 use std::path::PathBuf;
@@ -20,7 +20,9 @@ pub async fn handle_multi_repo_command(
     cmd: MultiRepoCommand,
     _config_path: Option<PathBuf>,
 ) -> Result<()> {
-    let config = crate::multi_repo::MultiRepoConfig::default();
+    // Use UnifiedConfig instead of deprecated MultiRepoConfig
+    let unified_config = crate::core::config::UnifiedConfig::default();
+    let config = unified_config.multi_repo;
     let mut context = MultiRepoContext::new(config).await?;
 
     match cmd {
@@ -132,7 +134,7 @@ pub async fn handle_register(
         "✓".green(),
         repo_name
     );
-    println!("  ID: {}", repo_id);
+    println!("  ID: {repo_id}");
     println!("  Path: {}", abs_path.display());
 
     Ok(())
@@ -202,11 +204,11 @@ pub async fn handle_analyze(
             for diagnostic in &diagnostics {
                 println!(
                     "{},{},{},{},{}",
-                    diagnostic.file_path.display(),
-                    diagnostic.severity,
-                    diagnostic.message,
+                    diagnostic.diagnostic.file,
+                    diagnostic.diagnostic.severity,
+                    diagnostic.diagnostic.message,
                     diagnostic.cross_repo_impact,
-                    diagnostic.affected_repositories.len()
+                    diagnostic.related_diagnostics.len()
                 );
             }
         }
@@ -257,13 +259,13 @@ pub async fn handle_relate(
     println!(
         "{} Creating {} relationship: {} → {}",
         "→".blue(),
-        format!("{:?}", relation).to_lowercase(),
+        format!("{relation:?}").to_lowercase(),
         source,
         target
     );
 
     if let Some(data) = data {
-        println!("  Additional data: {}", data);
+        println!("  Additional data: {data}");
     }
 
     // TODO: Implement relationship creation
@@ -328,7 +330,7 @@ pub async fn handle_team_command(_context: &mut MultiRepoContext, command: TeamC
             );
             
             if let Some(due) = due_date {
-                println!("  Due date: {}", due);
+                println!("  Due date: {due}");
             }
             
             // TODO: Implement assignment
@@ -344,7 +346,7 @@ pub async fn handle_team_command(_context: &mut MultiRepoContext, command: TeamC
             );
             
             if let Some(note) = note {
-                println!("  Note: {}", note);
+                println!("  Note: {note}");
             }
             
             // TODO: Implement status update
@@ -360,11 +362,11 @@ pub async fn handle_team_command(_context: &mut MultiRepoContext, command: TeamC
             println!("{} Showing assignment history (limit: {})", "→".blue(), limit);
             
             if let Some(member) = member {
-                println!("  Filtered by member: {}", member);
+                println!("  Filtered by member: {member}");
             }
             
             if let Some(repo) = repo {
-                println!("  Filtered by repo: {}", repo);
+                println!("  Filtered by repo: {repo}");
             }
             
             match format {
@@ -395,7 +397,7 @@ pub async fn handle_types(_context: &mut MultiRepoContext, format: OutputFormat)
     println!("{} Analyzing cross-repository type references...", "→".blue());
 
     // TODO: Implement type analysis
-    let type_references = Vec::new(); // Placeholder
+    let type_references: Vec<String> = Vec::new(); // Placeholder
 
     match format {
         OutputFormat::Table => {
@@ -477,11 +479,13 @@ pub fn display_diagnostics_table(diagnostics: &[crate::multi_repo::AggregatedDia
     println!("{}", "├─────────────────────────────────────────────────────┤".bright_black());
 
     for diagnostic in diagnostics {
-        let severity_color = match diagnostic.severity.to_lowercase().as_str() {
-            "error" => diagnostic.severity.red(),
-            "warning" => diagnostic.severity.yellow(),
-            "info" => diagnostic.severity.blue(),
-            _ => diagnostic.severity.normal(),
+        let severity_str = format!("{:?}", diagnostic.diagnostic.severity);
+        let severity_color = match severity_str.to_lowercase().as_str() {
+            "error" => severity_str.red(),
+            "warning" => severity_str.yellow(),
+            "information" => severity_str.blue(),
+            "hint" => severity_str.cyan(),
+            _ => severity_str.normal(),
         };
 
         let impact_color = if diagnostic.cross_repo_impact > 0.7 {
@@ -494,14 +498,15 @@ pub fn display_diagnostics_table(diagnostics: &[crate::multi_repo::AggregatedDia
 
         println!(
             "│ {:<10} │ {:<8} │ {:<12} │ {:<10} │",
-            diagnostic.file_path.file_name()
-                .unwrap_or_default()
-                .to_string_lossy()
+            diagnostic.diagnostic.file
+                .rsplit('/')
+                .next()
+                .unwrap_or(&diagnostic.diagnostic.file)
                 .chars()
                 .take(10)
                 .collect::<String>(),
             severity_color,
-            diagnostic.message
+            diagnostic.diagnostic.message
                 .chars()
                 .take(12)
                 .collect::<String>(),

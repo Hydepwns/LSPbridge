@@ -1,6 +1,5 @@
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
-use std::path::PathBuf;
 use tokio::fs;
 
 use crate::capture::{CaptureService, MemoryCache};
@@ -9,7 +8,7 @@ use crate::cli::args::{ExportArgs, OutputFormat};
 use crate::cli::commands::Command;
 use crate::core::traits::ExportService as ExportServiceTrait;
 use crate::core::{
-    DiagnosticFilter, DiagnosticSeverity, DiagnosticSnapshot, ExportConfig, ExportFormat,
+    DiagnosticFilter, DiagnosticSnapshot, ExportConfig, ExportFormat,
     RawDiagnostics, SortBy,
 };
 use crate::core::security_config::PrivacyLevel;
@@ -17,7 +16,7 @@ use crate::core::PrivacyPolicy;
 use crate::export::ExportService;
 use crate::format::FormatConverter;
 use crate::privacy::PrivacyFilter;
-use crate::security::{validate_path, validate_pattern};
+use crate::security::validate_path;
 
 use super::utils::create_diagnostic_filter;
 
@@ -104,7 +103,7 @@ impl Command for ExportCommand {
             fs::write(&validated_path, &output_content).await?;
             eprintln!("Diagnostics exported to {}", validated_path.display());
         } else {
-            print!("{}", output_content);
+            print!("{output_content}");
         }
 
         Ok(())

@@ -77,31 +77,31 @@ fn detect_node_config(project_root: &Path, system: BuildSystem) -> Result<BuildC
 
         // Standard script mappings
         if scripts.contains_key("build") {
-            commands.build = Some(format!("{} build", cmd_prefix));
+            commands.build = Some(format!("{cmd_prefix} build"));
         }
         if scripts.contains_key("test") {
-            commands.test = Some(format!("{} test", cmd_prefix));
+            commands.test = Some(format!("{cmd_prefix} test"));
         }
         if scripts.contains_key("lint") {
-            commands.lint = Some(format!("{} lint", cmd_prefix));
+            commands.lint = Some(format!("{cmd_prefix} lint"));
         }
         if scripts.contains_key("format") || scripts.contains_key("fmt") {
             let script_name = if scripts.contains_key("format") { "format" } else { "fmt" };
-            commands.format = Some(format!("{} {}", cmd_prefix, script_name));
+            commands.format = Some(format!("{cmd_prefix} {script_name}"));
         }
         if scripts.contains_key("start") {
-            commands.run = Some(format!("{} start", cmd_prefix));
+            commands.run = Some(format!("{cmd_prefix} start"));
         } else if scripts.contains_key("dev") {
-            commands.run = Some(format!("{} dev", cmd_prefix));
+            commands.run = Some(format!("{cmd_prefix} dev"));
         }
         if scripts.contains_key("clean") {
-            commands.clean = Some(format!("{} clean", cmd_prefix));
+            commands.clean = Some(format!("{cmd_prefix} clean"));
         }
 
         // Add other scripts as custom commands
         for (name, _) in scripts {
             if !matches!(name.as_str(), "build" | "test" | "lint" | "format" | "fmt" | "start" | "dev" | "clean") {
-                commands.custom.insert(name.clone(), format!("{} {}", cmd_prefix, name));
+                commands.custom.insert(name.clone(), format!("{cmd_prefix} {name}"));
             }
         }
     }

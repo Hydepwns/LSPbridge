@@ -1,5 +1,4 @@
 use anyhow::Result;
-use std::sync::Arc;
 use std::time::{Duration, SystemTime};
 
 use crate::core::{
@@ -112,7 +111,7 @@ impl MetricsCollector {
             // Check repository status
             if let Err(e) = git.is_repository_clean().await {
                 score -= 20.0;
-                issues.push(format!("Git status check failed: {}", e));
+                issues.push(format!("Git status check failed: {e}"));
             }
         }
 

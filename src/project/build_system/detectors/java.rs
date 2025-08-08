@@ -29,24 +29,24 @@ impl BuildSystemDetector for MavenDetector {
             "mvn"
         };
 
-        commands.build = Some(format!("{} compile", mvn_cmd));
-        commands.test = Some(format!("{} test", mvn_cmd));
-        commands.run = Some(format!("{} exec:java", mvn_cmd));
-        commands.clean = Some(format!("{} clean", mvn_cmd));
-        commands.custom.insert("package".to_string(), format!("{} package", mvn_cmd));
-        commands.custom.insert("install".to_string(), format!("{} install", mvn_cmd));
-        commands.custom.insert("verify".to_string(), format!("{} verify", mvn_cmd));
-        commands.custom.insert("dependency-tree".to_string(), format!("{} dependency:tree", mvn_cmd));
+        commands.build = Some(format!("{mvn_cmd} compile"));
+        commands.test = Some(format!("{mvn_cmd} test"));
+        commands.run = Some(format!("{mvn_cmd} exec:java"));
+        commands.clean = Some(format!("{mvn_cmd} clean"));
+        commands.custom.insert("package".to_string(), format!("{mvn_cmd} package"));
+        commands.custom.insert("install".to_string(), format!("{mvn_cmd} install"));
+        commands.custom.insert("verify".to_string(), format!("{mvn_cmd} verify"));
+        commands.custom.insert("dependency-tree".to_string(), format!("{mvn_cmd} dependency:tree"));
 
         // Check for common Maven plugins in pom.xml
         if content.contains("maven-checkstyle-plugin") || content.contains("spotbugs-maven-plugin") {
-            commands.lint = Some(format!("{} verify", mvn_cmd));
+            commands.lint = Some(format!("{mvn_cmd} verify"));
         }
 
         if content.contains("fmt-maven-plugin") || content.contains("formatter-maven-plugin") {
-            commands.format = Some(format!("{} fmt:format", mvn_cmd));
+            commands.format = Some(format!("{mvn_cmd} fmt:format"));
         } else if content.contains("spotless-maven-plugin") {
-            commands.format = Some(format!("{} spotless:apply", mvn_cmd));
+            commands.format = Some(format!("{mvn_cmd} spotless:apply"));
         }
 
         // Extract dependencies using XML parser
@@ -109,14 +109,14 @@ impl BuildSystemDetector for GradleDetector {
             "gradle"
         };
 
-        commands.build = Some(format!("{} build", gradle_cmd));
-        commands.test = Some(format!("{} test", gradle_cmd));
-        commands.run = Some(format!("{} run", gradle_cmd));
-        commands.clean = Some(format!("{} clean", gradle_cmd));
-        commands.custom.insert("assemble".to_string(), format!("{} assemble", gradle_cmd));
-        commands.custom.insert("check".to_string(), format!("{} check", gradle_cmd));
-        commands.custom.insert("dependencies".to_string(), format!("{} dependencies", gradle_cmd));
-        commands.custom.insert("tasks".to_string(), format!("{} tasks", gradle_cmd));
+        commands.build = Some(format!("{gradle_cmd} build"));
+        commands.test = Some(format!("{gradle_cmd} test"));
+        commands.run = Some(format!("{gradle_cmd} run"));
+        commands.clean = Some(format!("{gradle_cmd} clean"));
+        commands.custom.insert("assemble".to_string(), format!("{gradle_cmd} assemble"));
+        commands.custom.insert("check".to_string(), format!("{gradle_cmd} check"));
+        commands.custom.insert("dependencies".to_string(), format!("{gradle_cmd} dependencies"));
+        commands.custom.insert("tasks".to_string(), format!("{gradle_cmd} tasks"));
 
         // Read build file to check for plugins
         let build_file_path = if is_kotlin_dsl {
@@ -128,12 +128,12 @@ impl BuildSystemDetector for GradleDetector {
         if let Ok(content) = utils::read_file(&build_file_path) {
             // Check for common plugins
             if content.contains("checkstyle") || content.contains("spotbugs") || content.contains("pmd") {
-                commands.lint = Some(format!("{} check", gradle_cmd));
+                commands.lint = Some(format!("{gradle_cmd} check"));
             }
 
             if content.contains("spotless") {
-                commands.format = Some(format!("{} spotlessApply", gradle_cmd));
-                commands.custom.insert("format-check".to_string(), format!("{} spotlessCheck", gradle_cmd));
+                commands.format = Some(format!("{gradle_cmd} spotlessApply"));
+                commands.custom.insert("format-check".to_string(), format!("{gradle_cmd} spotlessCheck"));
             }
 
             // Extract dependencies (simplified)
@@ -230,7 +230,7 @@ fn parse_maven_dependencies(pom_path: &Path) -> Result<(Vec<String>, Vec<String>
                     "dependency" if in_dependencies => {
                         in_dependency = false;
                         if !current_group_id.is_empty() && !current_artifact_id.is_empty() {
-                            let dep = format!("{}:{}", current_group_id, current_artifact_id);
+                            let dep = format!("{current_group_id}:{current_artifact_id}");
                             if in_test_scope {
                                 dev_dependencies.push(dep);
                             } else {

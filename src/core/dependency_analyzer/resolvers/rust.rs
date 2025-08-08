@@ -5,6 +5,12 @@ use tree_sitter::Node;
 
 pub struct RustResolver;
 
+impl Default for RustResolver {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl RustResolver {
     pub fn new() -> Self {
         Self
@@ -77,7 +83,7 @@ impl LanguageResolver for RustResolver {
 
         // Convert :: to / and look for .rs files
         let file_path = import_path.replace("::", "/");
-        let rs_path = current_dir.join(format!("{}.rs", file_path));
+        let rs_path = current_dir.join(format!("{file_path}.rs"));
 
         if rs_path.exists() {
             Some(rs_path)
@@ -130,8 +136,8 @@ impl LanguageResolver for RustResolver {
                     // Extract public methods from impl blocks
                     let mut impl_cursor = node.walk();
                     self.visit_nodes(&mut impl_cursor, |impl_node| {
-                        if impl_node.kind() == "function_item" {
-                            if impl_node.child(0).map(|n| n.kind() == "visibility_modifier").unwrap_or(false) {
+                        if impl_node.kind() == "function_item"
+                            && impl_node.child(0).map(|n| n.kind() == "visibility_modifier").unwrap_or(false) {
                                 if let Some(name_node) = impl_node.child_by_field_name("name") {
                                     if let Ok(name) = name_node.utf8_text(source.as_bytes()) {
                                         exports.push(ExportInfo {
@@ -142,7 +148,6 @@ impl LanguageResolver for RustResolver {
                                     }
                                 }
                             }
-                        }
                     });
                 }
                 _ => {}

@@ -74,7 +74,8 @@ mod tests {
 
         // Valid repository path
         let validated = PathValidator::validate_repository_path(repo_path).unwrap();
-        assert_eq!(validated, repo_path);
+        // Compare canonical paths to handle macOS /var vs /private/var symlinks
+        assert_eq!(validated.canonicalize().unwrap(), repo_path.canonicalize().unwrap());
 
         // Invalid path (doesn't exist)
         let invalid_path = temp_dir.path().join("nonexistent");

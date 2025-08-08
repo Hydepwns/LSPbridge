@@ -2,11 +2,11 @@ use anyhow::Result;
 use crate::core::semantic_context::SemanticContext;
 use crate::core::types::Diagnostic;
 
-use super::algorithms::{RelevanceScorer, ProximityScorer, SemanticScorer};
+use super::algorithms::{RelevanceScorer, ProximityScorer};
 use super::filters::BudgetOptimizer;
 use super::token_estimator::TokenEstimator;
 use super::types::{
-    BudgetOptimizedContext, ContextContent, ContextElement, ContextElementType, ContextRanker,
+    ContextContent, ContextElement, ContextElementType, ContextRanker,
     RankedContext,
 };
 

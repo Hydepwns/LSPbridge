@@ -20,7 +20,7 @@ impl AlertRulesEngine {
             // Check CPU usage
             if component.metrics.cpu_usage > self.thresholds.cpu_critical {
                 alerts.push(HealthAlert {
-                    id: format!("cpu-critical-{}", component_name),
+                    id: format!("cpu-critical-{component_name}"),
                     severity: AlertSeverity::Critical,
                     component: component_name.clone(),
                     message: format!("Critical CPU usage: {:.1}%", component.metrics.cpu_usage),
@@ -30,7 +30,7 @@ impl AlertRulesEngine {
                 });
             } else if component.metrics.cpu_usage > self.thresholds.cpu_warning {
                 alerts.push(HealthAlert {
-                    id: format!("cpu-warning-{}", component_name),
+                    id: format!("cpu-warning-{component_name}"),
                     severity: AlertSeverity::Warning,
                     component: component_name.clone(),
                     message: format!("High CPU usage: {:.1}%", component.metrics.cpu_usage),
@@ -43,7 +43,7 @@ impl AlertRulesEngine {
             // Check memory usage
             if component.metrics.memory_usage > self.thresholds.memory_critical {
                 alerts.push(HealthAlert {
-                    id: format!("memory-critical-{}", component_name),
+                    id: format!("memory-critical-{component_name}"),
                     severity: AlertSeverity::Critical,
                     component: component_name.clone(),
                     message: format!(
@@ -56,7 +56,7 @@ impl AlertRulesEngine {
                 });
             } else if component.metrics.memory_usage > self.thresholds.memory_warning {
                 alerts.push(HealthAlert {
-                    id: format!("memory-warning-{}", component_name),
+                    id: format!("memory-warning-{component_name}"),
                     severity: AlertSeverity::Warning,
                     component: component_name.clone(),
                     message: format!("High memory usage: {:.1}%", component.metrics.memory_usage),
@@ -69,7 +69,7 @@ impl AlertRulesEngine {
             // Check error rate
             if component.metrics.error_rate > self.thresholds.error_rate_critical {
                 alerts.push(HealthAlert {
-                    id: format!("error-critical-{}", component_name),
+                    id: format!("error-critical-{component_name}"),
                     severity: AlertSeverity::Critical,
                     component: component_name.clone(),
                     message: format!("Critical error rate: {:.1}", component.metrics.error_rate),
@@ -79,7 +79,7 @@ impl AlertRulesEngine {
                 });
             } else if component.metrics.error_rate > self.thresholds.error_rate_warning {
                 alerts.push(HealthAlert {
-                    id: format!("error-warning-{}", component_name),
+                    id: format!("error-warning-{component_name}"),
                     severity: AlertSeverity::Warning,
                     component: component_name.clone(),
                     message: format!("High error rate: {:.1}", component.metrics.error_rate),
@@ -92,7 +92,7 @@ impl AlertRulesEngine {
             // Check response time
             if component.metrics.response_time > self.thresholds.response_time_critical {
                 alerts.push(HealthAlert {
-                    id: format!("response-critical-{}", component_name),
+                    id: format!("response-critical-{component_name}"),
                     severity: AlertSeverity::Critical,
                     component: component_name.clone(),
                     message: format!(
@@ -105,7 +105,7 @@ impl AlertRulesEngine {
                 });
             } else if component.metrics.response_time > self.thresholds.response_time_warning {
                 alerts.push(HealthAlert {
-                    id: format!("response-warning-{}", component_name),
+                    id: format!("response-warning-{component_name}"),
                     severity: AlertSeverity::Warning,
                     component: component_name.clone(),
                     message: format!("High response time: {:?}", component.metrics.response_time),

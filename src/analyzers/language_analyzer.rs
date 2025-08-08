@@ -105,6 +105,7 @@ pub struct FixSuggestion {
 
 /// Requirements for additional context
 #[derive(Debug, Clone)]
+#[derive(Default)]
 pub struct ContextRequirements {
     /// Files that should be examined
     pub required_files: Vec<String>,
@@ -181,15 +182,13 @@ impl DiagnosticPatterns {
 
     /// Check if an error message indicates a missing import
     pub fn is_missing_import(message: &str) -> bool {
-        let patterns = vec![
-            "cannot find",
+        let patterns = ["cannot find",
             "Cannot find",
             "not found",
             "does not exist",
             "undefined",
             "is not defined",
-            "unresolved import",
-        ];
+            "unresolved import"];
 
         patterns.iter().any(|pattern| message.contains(pattern))
     }
@@ -261,14 +260,3 @@ impl Default for DiagnosticAnalysis {
     }
 }
 
-impl Default for ContextRequirements {
-    fn default() -> Self {
-        Self {
-            required_files: Vec::new(),
-            required_symbols: Vec::new(),
-            required_types: Vec::new(),
-            config_files: Vec::new(),
-            dependencies: Vec::new(),
-        }
-    }
-}

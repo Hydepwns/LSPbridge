@@ -9,8 +9,6 @@ use crate::core::traits::ExportService as ExportServiceTrait;
 use crate::core::{
     DiagnosticFilter, DiagnosticSeverity, DiagnosticSnapshot, ExportConfig, ExportFormat,
 };
-use crate::core::security_config::PrivacyLevel;
-use crate::core::PrivacyPolicy;
 use crate::export::ExportService;
 use crate::format::FormatConverter;
 use crate::privacy::PrivacyFilter;
@@ -54,7 +52,7 @@ impl Command for WatchCommand {
             match self.watch_iteration(&mut capture_service, &export_service).await {
                 Ok(Some(output)) => {
                     if output != last_output {
-                        println!("{}", output);
+                        println!("{output}");
                         last_output = output;
                     }
                 }
@@ -62,7 +60,7 @@ impl Command for WatchCommand {
                     // No change, continue
                 }
                 Err(e) => {
-                    eprintln!("Watch iteration failed: {}", e);
+                    eprintln!("Watch iteration failed: {e}");
                 }
             }
         }

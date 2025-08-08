@@ -32,10 +32,10 @@ impl Command for HistoryCommand {
                 match format {
                     OutputFormat::Json => {
                         let json = serde_json::to_string_pretty(&trends)?;
-                        println!("{}", json);
+                        println!("{json}");
                     }
                     OutputFormat::Markdown | OutputFormat::Claude => {
-                        println!("# Diagnostic Trends (Last {} hours)\n", hours);
+                        println!("# Diagnostic Trends (Last {hours} hours)\n");
                         println!("**Health Score**: {:.1}%", trends.health_score * 100.0);
                         println!("**Trend Direction**: {:?}", trends.trend_direction);
                         println!(
@@ -80,7 +80,7 @@ impl Command for HistoryCommand {
                 match format {
                     OutputFormat::Json => {
                         let json = serde_json::to_string_pretty(&hot_spots)?;
-                        println!("{}", json);
+                        println!("{json}");
                     }
                     OutputFormat::Markdown | OutputFormat::Claude => {
                         println!("# Diagnostic Hot Spots\n");
@@ -111,40 +111,34 @@ impl Command for HistoryCommand {
                 match format {
                     OutputFormat::Json => {
                         let json = serde_json::to_string_pretty(&report)?;
-                        println!("{}", json);
+                        println!("{json}");
                     }
                     OutputFormat::Markdown | OutputFormat::Claude => {
                         println!("# File History: {}\n", validated_path.display());
-                        println!("**Time Period**: Last {} hours", hours);
-                        println!("**Total Issues**: {}", report.total_issues);
-                        println!("**Error Count**: {}", report.error_count);
-                        println!("**Warning Count**: {}", report.warning_count);
-                        println!(
-                            "**Average Fix Time**: {:.1} minutes",
-                            report.average_fix_time.as_secs_f64() / 60.0
-                        );
-                        println!("**Health Score**: {:.1}%\n", report.health_score * 100.0);
-
-                        if !report.issue_patterns.is_empty() {
-                            println!("## Issue Patterns");
-                            for pattern in report.issue_patterns.iter().take(5) {
-                                println!(
-                                    "- {} ({} occurrences)",
-                                    pattern.description, pattern.count
-                                );
-                            }
-                            println!();
+                        println!("**Time Period**: Last {hours} hours");
+                        println!("**Trend Direction**: {:?}", report.trend_direction);
+                        println!("**Volatility**: {:.2}", report.volatility);
+                        
+                        // Show current counts from the trends
+                        if let Some((_, last_errors)) = report.error_trend.last() {
+                            println!("**Current Error Count**: {last_errors}");
                         }
-
-                        if !report.recent_fixes.is_empty() {
-                            println!("## Recent Fixes");
-                            for fix in report.recent_fixes.iter().take(5) {
-                                println!(
-                                    "- Fixed {} at {}",
-                                    fix.diagnostic_id,
-                                    fix.timestamp.format("%Y-%m-%d %H:%M")
-                                );
-                            }
+                        if let Some((_, last_warnings)) = report.warning_trend.last() {
+                            println!("**Current Warning Count**: {last_warnings}");
+                        }
+                        
+                        // Show predictions
+                        println!("\n## Predictions");
+                        println!("**Next Hour Errors**: {}", report.predictions.next_hour_errors);
+                        println!("**Next Hour Warnings**: {}", report.predictions.next_hour_warnings);
+                        println!("**Confidence**: {:.1}%", report.predictions.confidence * 100.0);
+                        println!("**Suggested Action**: {}", report.predictions.suggested_action);
+                        
+                        // Show trend data
+                        if !report.error_trend.is_empty() || !report.warning_trend.is_empty() {
+                            println!("\n## Trends");
+                            println!("**Error trend points**: {}", report.error_trend.len());
+                            println!("**Warning trend points**: {}", report.warning_trend.len());
                         }
                     }
                 }
@@ -154,8 +148,7 @@ impl Command for HistoryCommand {
                 let cutoff_date = chrono::Utc::now() - chrono::Duration::days(*older_than_days as i64);
                 let deleted_count = manager.clean_old_data(cutoff_date).await?;
                 println!(
-                    "✅ Cleaned {} old diagnostic entries (older than {} days)",
-                    deleted_count, older_than_days
+                    "✅ Cleaned {deleted_count} old diagnostic entries (older than {older_than_days} days)"
                 );
             }
         }

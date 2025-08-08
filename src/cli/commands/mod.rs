@@ -42,13 +42,11 @@ pub mod utils {
 
         Ok(DiagnosticFilter {
             severities,
+            sources: None,
             file_patterns,
             exclude_patterns,
-            workspace: None,
-            start_time: None,
-            end_time: None,
             max_results,
-            tags: None,
+            since: None,
         })
     }
 }

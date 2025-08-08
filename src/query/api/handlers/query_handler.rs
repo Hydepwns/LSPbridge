@@ -43,7 +43,7 @@ impl QueryHandler {
                 return QueryResponse {
                     success: false,
                     result: None,
-                    error: Some(format!("Rate limit check failed: {}", e)),
+                    error: Some(format!("Rate limit check failed: {e}")),
                     query_time_ms: start_time.elapsed().as_millis() as u64,
                     rate_limit_status: Some(RateLimitStatus {
                         limited: true,

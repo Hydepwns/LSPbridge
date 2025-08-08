@@ -204,7 +204,7 @@ where
 
 /// Utilities for memory management
 pub mod utils {
-    use super::*;
+    
 
     /// Format bytes as human-readable string
     pub fn format_bytes(bytes: usize) -> String {

@@ -53,7 +53,13 @@ impl<'a> ClauseRules for ClauseRuleParser<'a> {
             self.state.consume(TokenType::Asterisk, "Expected '*' in COUNT(*)")?;
             self.state.consume(TokenType::RightParen, "Expected ')' after COUNT(*)")?;
             Ok(SelectClause::Count)
-        } else if self.state.check_identifier() {
+        } else if self.state.check_identifier() || 
+                  self.state.check(&TokenType::Errors) ||
+                  self.state.check(&TokenType::Warnings) ||
+                  self.state.check(&TokenType::Files) ||
+                  self.state.check(&TokenType::Diagnostics) ||
+                  self.state.check(&TokenType::History) ||
+                  self.state.check(&TokenType::Trends) {
             let fields = self.parse_field_list()?;
             Ok(SelectClause::Fields(fields))
         } else {
@@ -71,19 +77,44 @@ impl<'a> ClauseRules for ClauseRuleParser<'a> {
     fn parse_from_clause(&mut self) -> ParseResult<FromClause> {
         self.state.consume(TokenType::From, "Expected 'FROM'")?;
         
-        let token = self.state.consume(TokenType::Identifier, "Expected table name")?;
-        match token.lexeme.as_str() {
-            "diagnostics" => Ok(FromClause::Diagnostics),
-            "files" => Ok(FromClause::Files),
-            "symbols" => Ok(FromClause::Symbols),
-            "references" => Ok(FromClause::References),
-            "projects" => Ok(FromClause::Projects),
-            _ => Err(ParseError::UnknownTable {
-                table: token.lexeme.clone(),
-                line: token.line,
-                column: token.column,
-            }),
-        }
+        // Check for table name - can be a keyword token or identifier
+        let result = if self.state.check(&TokenType::Diagnostics) {
+            self.state.advance();
+            Ok(FromClause::Diagnostics)
+        } else if self.state.check(&TokenType::Files) {
+            self.state.advance();
+            Ok(FromClause::Files)
+        } else if self.state.check(&TokenType::History) {
+            self.state.advance();
+            Ok(FromClause::History)
+        } else if self.state.check(&TokenType::Trends) {
+            self.state.advance();
+            Ok(FromClause::Trends)
+        } else if self.state.check_identifier() {
+            let token = self.state.advance();
+            match token.lexeme.as_str() {
+                "diagnostics" => Ok(FromClause::Diagnostics),
+                "files" => Ok(FromClause::Files),
+                "symbols" => Ok(FromClause::Symbols),
+                "references" => Ok(FromClause::References),
+                "projects" => Ok(FromClause::Projects),
+                "history" => Ok(FromClause::History),
+                "trends" => Ok(FromClause::Trends),
+                _ => Err(ParseError::UnknownTable {
+                    table: token.lexeme.clone(),
+                    line: token.line,
+                    column: token.column,
+                }),
+            }
+        } else {
+            Err(ParseError::UnexpectedToken {
+                expected: "table name".to_string(),
+                found: self.state.peek().lexeme.clone(),
+                line: self.state.peek().line,
+                column: self.state.peek().column,
+            })
+        };
+        result
     }
     
     /// Parse WHERE clause
@@ -120,10 +151,8 @@ impl<'a> ClauseRules for ClauseRuleParser<'a> {
     /// group_by_clause = GROUP BY field_list
     fn parse_group_by_clause(&mut self) -> ParseResult<GroupByClause> {
         // GROUP token already consumed by caller
-        // Skip "BY" if present
-        if self.state.check(&TokenType::GroupBy) {
-            self.state.advance();
-        }
+        // Consume "BY"
+        self.state.consume(TokenType::By, "Expected 'BY' after 'GROUP'")?;
         
         let fields = self.parse_field_list()?;
         
@@ -138,12 +167,31 @@ impl<'a> ClauseRules for ClauseRuleParser<'a> {
     /// order_by_clause = ORDER BY field (ASC | DESC)?
     fn parse_order_by_clause(&mut self) -> ParseResult<OrderByClause> {
         // ORDER token already consumed by caller
-        // Skip "BY" if present
-        if self.state.check(&TokenType::OrderBy) {
-            self.state.advance();
-        }
+        // Consume "BY"
+        self.state.consume(TokenType::By, "Expected 'BY' after 'ORDER'")?;
         
-        let field = self.state.consume(TokenType::Identifier, "Expected field name")?.lexeme.clone();
+        // Field names can be identifiers or certain keywords
+        let field = if self.state.check_identifier() || 
+                       self.state.check(&TokenType::Count) || 
+                       self.state.check(&TokenType::Sum) ||
+                       self.state.check(&TokenType::Avg) ||
+                       self.state.check(&TokenType::Min) ||
+                       self.state.check(&TokenType::Max) ||
+                       self.state.check(&TokenType::Errors) ||
+                       self.state.check(&TokenType::Warnings) ||
+                       self.state.check(&TokenType::Files) ||
+                       self.state.check(&TokenType::Diagnostics) ||
+                       self.state.check(&TokenType::History) ||
+                       self.state.check(&TokenType::Trends) {
+            self.state.advance().lexeme.clone()
+        } else {
+            return Err(ParseError::UnexpectedToken {
+                expected: "field name".to_string(),
+                found: self.state.peek().lexeme.clone(),
+                line: self.state.peek().line,
+                column: self.state.peek().column,
+            });
+        };
         
         if field.is_empty() {
             return Err(ParseError::EmptyOrderBy);
@@ -164,7 +212,15 @@ impl<'a> ClauseRules for ClauseRuleParser<'a> {
     fn parse_limit_clause(&mut self) -> ParseResult<u32> {
         // LIMIT token already consumed by caller
         
-        let token = self.state.consume(TokenType::Number, "Expected number after LIMIT")?;
+        if !self.state.check_number() {
+            return Err(ParseError::UnexpectedToken {
+                expected: "number after LIMIT".to_string(),
+                found: self.state.peek().lexeme.clone(),
+                line: self.state.peek().line,
+                column: self.state.peek().column,
+            });
+        }
+        let token = self.state.advance();
         let value = token.lexeme.parse::<u32>()
             .map_err(|_| ParseError::InvalidNumber {
                 value: token.lexeme.clone(),
@@ -174,7 +230,7 @@ impl<'a> ClauseRules for ClauseRuleParser<'a> {
         
         if value == 0 {
             return Err(ParseError::InvalidLimit {
-                value,
+                limit: value,
                 reason: "LIMIT must be greater than 0".to_string(),
             });
         }
@@ -189,7 +245,51 @@ impl<'a> ClauseRuleParser<'a> {
         let mut fields = Vec::new();
         
         loop {
-            let field = self.state.consume(TokenType::Identifier, "Expected field name")?.lexeme.clone();
+            // Check for aggregation functions first
+            let field = if self.state.check(&TokenType::Count) || 
+                          self.state.check(&TokenType::Sum) ||
+                          self.state.check(&TokenType::Avg) ||
+                          self.state.check(&TokenType::Min) ||
+                          self.state.check(&TokenType::Max) {
+                let func = self.state.advance().lexeme.clone();
+                // Handle COUNT(*) and other aggregation functions
+                if self.state.check(&TokenType::LeftParen) {
+                    self.state.advance();
+                    let arg = if self.state.check(&TokenType::Asterisk) {
+                        self.state.advance();
+                        "*".to_string()
+                    } else if self.state.check_identifier() {
+                        self.state.advance().lexeme.clone()
+                    } else {
+                        return Err(ParseError::UnexpectedToken {
+                            expected: "field name or *".to_string(),
+                            found: self.state.peek().lexeme.clone(),
+                            line: self.state.peek().line,
+                            column: self.state.peek().column,
+                        });
+                    };
+                    self.state.consume(TokenType::RightParen, "Expected ')' after aggregation function")?;
+                    format!("{func}({arg})")
+                } else {
+                    func
+                }
+            } else if self.state.check_identifier() {
+                self.state.advance().lexeme.clone()
+            } else if self.state.check(&TokenType::Errors) ||
+                      self.state.check(&TokenType::Warnings) ||
+                      self.state.check(&TokenType::Files) ||
+                      self.state.check(&TokenType::Diagnostics) ||
+                      self.state.check(&TokenType::History) ||
+                      self.state.check(&TokenType::Trends) {
+                self.state.advance().lexeme.clone()
+            } else {
+                return Err(ParseError::UnexpectedToken {
+                    expected: "field name".to_string(),
+                    found: self.state.peek().lexeme.clone(),
+                    line: self.state.peek().line,
+                    column: self.state.peek().column,
+                });
+            };
             fields.push(field);
             
             if self.state.match_token(&TokenType::Comma) {

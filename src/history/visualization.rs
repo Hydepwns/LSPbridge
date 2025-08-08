@@ -282,7 +282,7 @@ impl VisualizationExporter {
             let mut values = Vec::new();
 
             for (category, duration) in &trends.fix_time_estimates {
-                categories.push(format!("{:?}", category));
+                categories.push(format!("{category:?}"));
                 values.push(duration.as_secs() as f64 / 60.0); // Convert to minutes
             }
 

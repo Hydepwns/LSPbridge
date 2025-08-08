@@ -37,7 +37,7 @@ pub async fn run_cli() -> Result<()> {
     // Initialize logging
     let log_level = if cli.verbose { "debug" } else { "info" };
     tracing_subscriber::fmt()
-        .with_env_filter(format!("lsp_bridge={}", log_level))
+        .with_env_filter(format!("lsp_bridge={log_level}"))
         .init();
 
     // Route to appropriate command handler

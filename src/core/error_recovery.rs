@@ -244,7 +244,7 @@ impl ErrorRecoverySystem {
                 }
             }
             ErrorSeverity::Medium => {
-                if self.should_clear_cache(&error_event).await {
+                if self.should_clear_cache(error_event).await {
                     RecoveryAction::ClearCache
                 } else {
                     RecoveryAction::Fallback

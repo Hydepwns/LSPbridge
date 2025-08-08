@@ -7,7 +7,7 @@
 //! - Invalid characters in paths
 
 use std::path::{Path, PathBuf};
-use anyhow::{Context, Result};
+use anyhow::Result;
 use crate::error::{LspBridgeError, LspResult};
 
 /// Validates and normalizes a user-provided path
@@ -38,7 +38,7 @@ pub fn validate_path(path: &Path) -> LspResult<PathBuf> {
     let canonical = path.canonicalize()
         .map_err(|e| LspBridgeError::Validation {
             field: "path".to_string(),
-            reason: format!("Invalid path: {}", e),
+            reason: format!("Invalid path: {e}"),
         })?;
     
     Ok(canonical)
@@ -60,7 +60,7 @@ pub fn validate_pattern(pattern: &str) -> LspResult<String> {
         if pattern.contains(*ch) {
             return Err(LspBridgeError::Validation {
                 field: "pattern".to_string(),
-                reason: format!("Pattern contains potentially dangerous character: {}", ch),
+                reason: format!("Pattern contains potentially dangerous character: {ch}"),
             });
         }
     }
@@ -70,7 +70,7 @@ pub fn validate_pattern(pattern: &str) -> LspResult<String> {
     if pattern.len() > MAX_PATTERN_LENGTH {
         return Err(LspBridgeError::Validation {
             field: "pattern".to_string(),
-            reason: format!("Pattern too long (max {} characters)", MAX_PATTERN_LENGTH),
+            reason: format!("Pattern too long (max {MAX_PATTERN_LENGTH} characters)"),
         });
     }
     
@@ -85,7 +85,7 @@ pub fn validate_workspace_path(path: &Path, workspace_root: &Path) -> LspResult<
     let canonical_workspace = workspace_root.canonicalize()
         .map_err(|e| LspBridgeError::Validation {
             field: "workspace_root".to_string(),
-            reason: format!("Invalid workspace root: {}", e),
+            reason: format!("Invalid workspace root: {e}"),
         })?;
     
     // Ensure the path is within the workspace

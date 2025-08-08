@@ -244,6 +244,37 @@ impl RepositoryRegistry {
         Ok(repos)
     }
 
+    /// List all repositories (including inactive)
+    pub async fn list_all(&self) -> Result<Vec<RepositoryInfo>> {
+        let conn = self.conn.lock().await;
+
+        let mut stmt = conn.prepare("SELECT * FROM repositories ORDER BY name")?;
+
+        let repos = stmt
+            .query_map([], |row| {
+                Ok(RepositoryInfo {
+                    id: row.get(0)?,
+                    name: row.get(1)?,
+                    path: PathBuf::from(row.get::<_, String>(2)?),
+                    remote_url: row.get(3)?,
+                    primary_language: row.get(4)?,
+                    build_system: row.get(5)?,
+                    is_monorepo_member: row.get(6)?,
+                    monorepo_id: row.get(7)?,
+                    tags: row
+                        .get::<_, Option<String>>(8)?
+                        .map(|s| s.split(',').map(String::from).collect())
+                        .unwrap_or_default(),
+                    active: row.get(9)?,
+                    last_diagnostic_run: row.get(10)?,
+                    metadata: serde_json::from_str(&row.get::<_, String>(11)?).ok().unwrap_or_default(),
+                })
+            })?
+            .collect::<rusqlite::Result<Vec<_>>>()?;
+
+        Ok(repos)
+    }
+
     /// Add a relationship between repositories
     pub async fn add_relation(&self, relation: RepositoryRelation) -> Result<()> {
         let conn = self.conn.lock().await;
@@ -319,7 +350,7 @@ impl RepositoryRegistry {
         let mut stmt =
             conn.prepare("SELECT * FROM repositories WHERE tags LIKE ?1 AND active = 1")?;
 
-        let pattern = format!("%\"{}\"% ", tag);
+        let pattern = format!("%\"{tag}\"% ");
         let repos = stmt
             .query_map(params![pattern], |row| {
                 Ok(RepositoryInfo {

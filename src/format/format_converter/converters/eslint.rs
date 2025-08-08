@@ -69,7 +69,7 @@ impl SpecificFormatConverter for ESLintConverter {
             .ok_or_else(|| ParseError::InvalidFormat {
                 context: "ESLint results".to_string(),
                 expected: "array of ESLint results".to_string(),
-                found: format!("{:?}", results_array),
+                found: format!("{results_array:?}"),
             })?;
 
         let mut diagnostics = Vec::new();

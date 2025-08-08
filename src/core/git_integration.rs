@@ -68,7 +68,7 @@ impl GitIntegration {
         let git_root = {
             let output = Command::new("git")
                 .current_dir(&repo_path)
-                .args(&["rev-parse", "--show-toplevel"])
+                .args(["rev-parse", "--show-toplevel"])
                 .output()?;
 
             if output.status.success() {
@@ -95,7 +95,7 @@ impl GitIntegration {
 
     pub async fn find_git_root() -> Result<Option<PathBuf>> {
         let output = Command::new("git")
-            .args(&["rev-parse", "--show-toplevel"])
+            .args(["rev-parse", "--show-toplevel"])
             .output();
 
         match output {
@@ -132,7 +132,7 @@ impl GitIntegration {
 
         let output = Command::new("git")
             .current_dir(repo_root)
-            .args(&["diff", "--name-only", commit_hash])
+            .args(["diff", "--name-only", commit_hash])
             .output()?;
 
         if !output.status.success() {
@@ -198,7 +198,7 @@ impl GitIntegration {
 
         let output = Command::new("git")
             .current_dir(repo_root)
-            .args(&["check-ignore", relative_path_buf.to_string_lossy().as_ref()])
+            .args(["check-ignore", relative_path_buf.to_string_lossy().as_ref()])
             .output()?;
 
         // Git check-ignore returns 0 if file is ignored, 1 if not ignored
@@ -213,7 +213,7 @@ impl GitIntegration {
 
         let output = Command::new("git")
             .current_dir(repo_root)
-            .args(&[
+            .args([
                 "log",
                 "-1",
                 "--format=%H",
@@ -244,7 +244,7 @@ impl GitIntegration {
         // Get current branch
         let branch_output = Command::new("git")
             .current_dir(repo_root)
-            .args(&["branch", "--show-current"])
+            .args(["branch", "--show-current"])
             .output()?;
 
         if !branch_output.status.success() {
@@ -258,11 +258,11 @@ impl GitIntegration {
         // Get ahead/behind info if remote exists
         let remote_output = Command::new("git")
             .current_dir(repo_root)
-            .args(&[
+            .args([
                 "rev-list",
                 "--left-right",
                 "--count",
-                &format!("origin/{}...HEAD", current_branch),
+                &format!("origin/{current_branch}...HEAD"),
             ])
             .output();
 
@@ -346,7 +346,7 @@ impl GitIntegration {
         // Get current commit hash
         let hash_output = Command::new("git")
             .current_dir(repo_root)
-            .args(&["rev-parse", "HEAD"])
+            .args(["rev-parse", "HEAD"])
             .output()?;
 
         if !hash_output.status.success() {
@@ -363,7 +363,7 @@ impl GitIntegration {
         // Check if repository is dirty
         let status_output = Command::new("git")
             .current_dir(repo_root)
-            .args(&["status", "--porcelain"])
+            .args(["status", "--porcelain"])
             .output()?;
 
         let is_dirty = !status_output.stdout.is_empty();
@@ -385,7 +385,7 @@ impl GitIntegration {
 
         let output = Command::new("git")
             .current_dir(repo_root)
-            .args(&["status", "--porcelain=v1", "-z"])
+            .args(["status", "--porcelain=v1", "-z"])
             .output()?;
 
         if !output.status.success() {

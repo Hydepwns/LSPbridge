@@ -262,6 +262,7 @@ pub struct RawDiagnostics {
 /// };
 /// ```
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Default)]
 pub struct DiagnosticFilter {
     /// Filter by diagnostic severity levels
     pub severities: Option<Vec<DiagnosticSeverity>>,
@@ -277,24 +278,18 @@ pub struct DiagnosticFilter {
     pub since: Option<DateTime<Utc>>,
 }
 
-impl Default for DiagnosticFilter {
-    fn default() -> Self {
-        Self {
-            severities: None,
-            sources: None,
-            file_patterns: None,
-            exclude_patterns: None,
-            max_results: None,
-            since: None,
-        }
-    }
-}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DiagnosticResult {
     pub diagnostics: HashMap<PathBuf, Vec<Diagnostic>>,
     pub summary: DiagnosticSummary,
     pub timestamp: DateTime<Utc>,
+}
+
+impl Default for DiagnosticResult {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl DiagnosticResult {
@@ -423,7 +418,7 @@ impl std::str::FromStr for DiagnosticSeverity {
             "warning" => Ok(DiagnosticSeverity::Warning),
             "info" | "information" => Ok(DiagnosticSeverity::Information),
             "hint" => Ok(DiagnosticSeverity::Hint),
-            _ => Err(format!("Unknown severity: {}", s)),
+            _ => Err(format!("Unknown severity: {s}")),
         }
     }
 }

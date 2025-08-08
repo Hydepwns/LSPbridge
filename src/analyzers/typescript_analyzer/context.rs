@@ -6,6 +6,12 @@ use regex::Regex;
 
 pub struct TypeScriptContextAnalyzer;
 
+impl Default for TypeScriptContextAnalyzer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TypeScriptContextAnalyzer {
     pub fn new() -> Self {
         Self

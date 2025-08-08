@@ -132,11 +132,11 @@ impl DiagnosticPatterns {
         let mut identifiers = Vec::new();
 
         // Extract single-quoted identifiers
-        let mut chars = message.chars().peekable();
+        let chars = message.chars().peekable();
         let mut current_quote = None;
         let mut current_identifier = String::new();
 
-        while let Some(ch) = chars.next() {
+        for ch in chars {
             match (ch, current_quote) {
                 ('\'', None) | ('"', None) => {
                     current_quote = Some(ch);

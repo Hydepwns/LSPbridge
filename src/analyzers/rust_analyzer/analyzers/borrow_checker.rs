@@ -7,6 +7,12 @@ pub struct BorrowCheckerAnalyzer;
 
 impl AnalyzerBase for BorrowCheckerAnalyzer {}
 
+impl Default for BorrowCheckerAnalyzer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl BorrowCheckerAnalyzer {
     pub fn new() -> Self {
         Self

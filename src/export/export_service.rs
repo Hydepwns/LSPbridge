@@ -146,7 +146,7 @@ impl ExportService {
                 continue;
             }
 
-            lines.push(format!("## {}s", severity_name));
+            lines.push(format!("## {severity_name}s"));
             lines.push(String::new());
 
             for diagnostic in group_diagnostics {
@@ -164,7 +164,7 @@ impl ExportService {
         let file_groups = self.group_by_file(diagnostics);
 
         for (file, file_diagnostics) in &file_groups {
-            lines.push(format!("## {}", file));
+            lines.push(format!("## {file}"));
             lines.push(String::new());
 
             for diagnostic in file_diagnostics {
@@ -189,10 +189,10 @@ impl ExportService {
             let code = diagnostic
                 .code
                 .as_ref()
-                .map(|c| format!(" ({})", c))
+                .map(|c| format!(" ({c})"))
                 .unwrap_or_default();
 
-            lines.push(format!("### {}", location));
+            lines.push(format!("### {location}"));
             lines.push(format!(
                 "**{}{}**: {}",
                 diagnostic.source, code, diagnostic.message
@@ -231,10 +231,10 @@ impl ExportService {
         let code = diagnostic
             .code
             .as_ref()
-            .map(|c| format!(" ({})", c))
+            .map(|c| format!(" ({c})"))
             .unwrap_or_default();
 
-        lines.push(format!("### {} {}", severity_icon, location));
+        lines.push(format!("### {severity_icon} {location}"));
         lines.push(format!(
             "**{}{}**: {}",
             diagnostic.source, code, diagnostic.message
@@ -303,7 +303,7 @@ impl ExportService {
         for diagnostic in diagnostics {
             groups
                 .entry(diagnostic.file.clone())
-                .or_insert_with(Vec::new)
+                .or_default()
                 .push(diagnostic);
         }
 
@@ -352,7 +352,6 @@ impl ExportServiceTrait for ExportService {
                 "build_system": info.build_config.system,
                 "commands": info.build_config.all_commands()
                     .into_iter()
-                    .map(|(name, cmd)| (name, cmd))
                     .collect::<HashMap<_, _>>(),
                 "main_language": info.structure.get_main_language(),
                 "is_monorepo": info.structure.is_monorepo,
@@ -398,7 +397,7 @@ impl ExportServiceTrait for ExportService {
                 info.build_config.system
             ));
             if let Some(lang) = info.structure.get_main_language() {
-                lines.push(format!("- **Primary Language**: {}", lang));
+                lines.push(format!("- **Primary Language**: {lang}"));
             }
             if info.structure.is_monorepo {
                 lines.push(format!(
@@ -410,7 +409,7 @@ impl ExportServiceTrait for ExportService {
 
             lines.push("### Available Commands".to_string());
             for (name, cmd) in info.build_config.all_commands() {
-                lines.push(format!("- `{}`: `{}`", name, cmd));
+                lines.push(format!("- `{name}`: `{cmd}`"));
             }
             lines.push(String::new());
         }
@@ -469,15 +468,15 @@ impl ExportServiceTrait for ExportService {
                 info.build_config.system
             ));
             if let Some(lang) = info.structure.get_main_language() {
-                lines.push(format!("- **Language**: {}", lang));
+                lines.push(format!("- **Language**: {lang}"));
             }
 
             // Include relevant commands for AI to suggest
             if let Some(test_cmd) = info.build_config.get_command("test") {
-                lines.push(format!("- **Test Command**: `{}`", test_cmd));
+                lines.push(format!("- **Test Command**: `{test_cmd}`"));
             }
             if let Some(build_cmd) = info.build_config.get_command("build") {
-                lines.push(format!("- **Build Command**: `{}`", build_cmd));
+                lines.push(format!("- **Build Command**: `{build_cmd}`"));
             }
             lines.push(String::new());
         }
@@ -529,7 +528,7 @@ impl ExportServiceTrait for ExportService {
             lines.push("This diagnostic report contains:".to_string());
 
             for (source, count) in &summary.source_breakdown {
-                lines.push(format!("- {} diagnostic(s) from {}", count, source));
+                lines.push(format!("- {count} diagnostic(s) from {source}"));
             }
             lines.push(String::new());
             lines.push(

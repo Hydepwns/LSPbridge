@@ -60,7 +60,7 @@ fn format_context_element(element: &ContextElement) -> String {
             output.push_str("\n```\n");
         }
         ContextContent::Class(class) => {
-            output.push_str(&format!("### {}: {}\n", class.kind, class.name));
+            output.push_str(&format!("### Class: {}\n", class.name));
             output.push_str(&format!(
                 "**Lines:** {}-{}\n",
                 class.start_line, class.end_line
@@ -76,9 +76,7 @@ fn format_context_element(element: &ContextElement) -> String {
         ContextContent::Import(import) => {
             output.push_str("### Import\n");
             output.push_str(&format!("**Statement:** `{}`\n", import.statement));
-            if let Some(source) = &import.source {
-                output.push_str(&format!("**Source:** {}\n", source));
-            }
+            output.push_str(&format!("**Source:** {}\n", import.source));
             output.push_str(&format!(
                 "**Symbols:** {}\n",
                 import.imported_names.join(", ")
@@ -90,7 +88,7 @@ fn format_context_element(element: &ContextElement) -> String {
         }
         ContextContent::Type(type_def) => {
             output.push_str(&format!("### Type: {}\n", type_def.name));
-            output.push_str(&format!("**Kind:** {}\n", type_def.kind));
+            output.push_str("**Kind:** Type\n");
             output.push_str(&format!(
                 "**Relevance:** {}\n",
                 element.relevance_explanation
@@ -102,10 +100,10 @@ fn format_context_element(element: &ContextElement) -> String {
         ContextContent::Variable(var) => {
             output.push_str(&format!("### Variable: {}\n", var.name));
             if let Some(type_annotation) = &var.type_annotation {
-                output.push_str(&format!("**Type:** {}\n", type_annotation));
+                output.push_str(&format!("**Type:** {type_annotation}\n"));
             }
-            if let Some(init) = &var.initial_value {
-                output.push_str(&format!("**Initial value:** {}\n", init));
+            if let Some(init) = &var.value {
+                output.push_str(&format!("**Initial value:** {init}\n"));
             }
             output.push_str(&format!(
                 "**Relevance:** {}\n",
@@ -119,7 +117,7 @@ fn format_context_element(element: &ContextElement) -> String {
                 for call in &calls.callees {
                     output.push_str(&format!(
                         "- {} (line {})\n",
-                        call.function_name, call.call_site_line
+                        call.function_name, call.line
                     ));
                 }
             }
@@ -128,7 +126,7 @@ fn format_context_element(element: &ContextElement) -> String {
                 for call in &calls.callers {
                     output.push_str(&format!(
                         "- {} (line {})\n",
-                        call.function_name, call.call_site_line
+                        call.function_name, call.line
                     ));
                 }
             }

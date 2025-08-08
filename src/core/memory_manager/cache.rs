@@ -321,8 +321,8 @@ where
                 stats.hit_rate()
             );
 
-            let target_size = (self.config.max_memory_mb * 1024 * 1024) as f64 * 0.5;
-            let target_count = self.config.max_entries as f64 * 0.5;
+            let _target_size = (self.config.max_memory_mb * 1024 * 1024) as f64 * 0.5;
+            let _target_count = self.config.max_entries as f64 * 0.5;
 
             let evicted = self.eviction_manager
                 .evict_if_needed(

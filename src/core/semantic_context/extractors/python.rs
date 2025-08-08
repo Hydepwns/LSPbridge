@@ -10,6 +10,12 @@ use super::{LanguageExtractor, utils};
 
 pub struct PythonExtractor;
 
+impl Default for PythonExtractor {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl PythonExtractor {
     pub fn new() -> Self {
         Self
@@ -51,7 +57,7 @@ impl LanguageExtractor for PythonExtractor {
 
     fn get_parser(&self) -> Result<Parser> {
         let mut parser = Parser::new();
-        parser.set_language(&tree_sitter_python::language())?;
+        parser.set_language(tree_sitter_python::language())?;
         Ok(parser)
     }
 
@@ -268,7 +274,6 @@ impl LanguageExtractor for PythonExtractor {
             }
 
             if self.is_scope_boundary(n) {
-                return;
             }
         });
 
@@ -383,7 +388,7 @@ impl LanguageExtractor for PythonExtractor {
             String::new()
         };
 
-        format!("{}def {}{}{}", decorator_str, name, params, return_type)
+        format!("{decorator_str}def {name}{params}{return_type}")
     }
 
     fn is_builtin_type(&self, type_name: &str) -> bool {

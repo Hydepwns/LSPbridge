@@ -60,7 +60,7 @@ impl MultiRepoConfigManager {
     pub async fn load_configuration(&mut self) -> Result<&MultiRepoCliConfig> {
         if let Some(path) = &self.config_path {
             if path.exists() {
-                self.config = self.loader.load_from_file(path).await?;
+                self.config = self.loader.load_from_file(path)?;
                 
                 // Validate loaded configuration
                 self.validate_configuration()?;
@@ -76,7 +76,7 @@ impl MultiRepoConfigManager {
     /// Save current configuration to file
     pub async fn save_configuration(&self) -> Result<()> {
         if let Some(path) = &self.config_path {
-            self.loader.save_to_file(&self.config, path).await?;
+            self.loader.save_to_file(&self.config, path)?;
         }
 
         Ok(())

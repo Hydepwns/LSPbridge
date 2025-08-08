@@ -10,6 +10,12 @@ use super::{LanguageExtractor, utils};
 
 pub struct RustExtractor;
 
+impl Default for RustExtractor {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl RustExtractor {
     pub fn new() -> Self {
         Self
@@ -49,7 +55,7 @@ impl LanguageExtractor for RustExtractor {
 
     fn get_parser(&self) -> Result<Parser> {
         let mut parser = Parser::new();
-        parser.set_language(&tree_sitter_rust::language())?;
+        parser.set_language(tree_sitter_rust::language())?;
         Ok(parser)
     }
 
@@ -229,7 +235,6 @@ impl LanguageExtractor for RustExtractor {
             }
 
             if self.is_scope_boundary(n) {
-                return;
             }
         });
 
@@ -329,7 +334,7 @@ impl LanguageExtractor for RustExtractor {
             .map(|n| format!(" {}", utils::node_text(&n, source)))
             .unwrap_or_default();
 
-        format!("{}fn {}{}{}", visibility, name, params, return_type)
+        format!("{visibility}fn {name}{params}{return_type}")
     }
 
     fn is_builtin_type(&self, type_name: &str) -> bool {

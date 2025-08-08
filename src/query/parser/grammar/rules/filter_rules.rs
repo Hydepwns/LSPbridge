@@ -88,7 +88,7 @@ impl<'a> FilterRules for FilterRuleParser<'a> {
     /// Parse severity filter
     /// severity_filter = severity comparison_operator severity_value
     fn parse_severity_filter(&mut self) -> ParseResult<QueryFilter> {
-        self.parse_comparison_operator()?;
+        let comparison = self.parse_comparison_operator()?;
         let value = self.parse_string_or_identifier()?;
         
         let severity = match value.to_lowercase().as_str() {
@@ -103,13 +103,13 @@ impl<'a> FilterRules for FilterRuleParser<'a> {
             }),
         };
         
-        Ok(QueryFilter::Severity(SeverityFilter { severity }))
+        Ok(QueryFilter::Severity(SeverityFilter { severity, comparison }))
     }
     
     /// Parse file filter
     /// file_filter = file comparison_operator string_pattern
     fn parse_file_filter(&mut self) -> ParseResult<QueryFilter> {
-        self.parse_comparison_operator()?;
+        let _comparison = self.parse_comparison_operator()?; // Not used for file filter
         let pattern = self.parse_string_or_identifier()?;
         
         if pattern.is_empty() {
@@ -126,7 +126,7 @@ impl<'a> FilterRules for FilterRuleParser<'a> {
     /// Parse symbol filter
     /// symbol_filter = symbol comparison_operator string_pattern
     fn parse_symbol_filter(&mut self) -> ParseResult<QueryFilter> {
-        self.parse_comparison_operator()?;
+        let _comparison = self.parse_comparison_operator()?; // Not used for symbol filter
         let pattern = self.parse_string_or_identifier()?;
         
         if pattern.is_empty() {
@@ -143,7 +143,7 @@ impl<'a> FilterRules for FilterRuleParser<'a> {
     /// Parse time filter
     /// time_filter = (since|before|after) comparison_operator datetime_value
     fn parse_time_filter(&mut self, field: String) -> ParseResult<QueryFilter> {
-        self.parse_comparison_operator()?;
+        let _comparison = self.parse_comparison_operator()?; // Not used for time filter
         let value = self.parse_string_or_identifier()?;
         
         // Parse the datetime - support various formats
@@ -164,7 +164,15 @@ impl<'a> FilterRules for FilterRuleParser<'a> {
     fn parse_relative_time_filter(&mut self) -> ParseResult<QueryFilter> {
         self.state.consume(TokenType::Last, "Expected 'LAST'")?;
         
-        let value_token = self.state.consume(TokenType::Number, "Expected number after LAST")?;
+        if !self.state.check_number() {
+            return Err(ParseError::UnexpectedToken {
+                expected: "number after LAST".to_string(),
+                found: self.state.peek().lexeme.clone(),
+                line: self.state.peek().line,
+                column: self.state.peek().column,
+            });
+        }
+        let value_token = self.state.advance();
         let value = self.value_parser.parse_number_value(&value_token.lexeme)? as u32;
         
         if value == 0 {
@@ -202,7 +210,7 @@ impl<'a> FilterRules for FilterRuleParser<'a> {
     /// Parse custom filter
     /// custom_filter = field comparison_operator value
     fn parse_custom_filter(&mut self, field: String) -> ParseResult<QueryFilter> {
-        self.parse_comparison_operator()?;
+        let _comparison = self.parse_comparison_operator()?; // Not used for custom filter
         let value = self.parse_string_or_identifier()?;
         
         if field.is_empty() {
@@ -218,28 +226,35 @@ impl<'a> FilterRules for FilterRuleParser<'a> {
 
 impl<'a> FilterRuleParser<'a> {
     /// Parse comparison operator
-    fn parse_comparison_operator(&mut self) -> ParseResult<()> {
-        if self.state.match_token(&TokenType::Equal) ||
-           self.state.match_token(&TokenType::NotEqual) ||
-           self.state.match_token(&TokenType::Like) ||
-           self.state.match_token(&TokenType::Greater) ||
-           self.state.match_token(&TokenType::Less) ||
-           self.state.match_token(&TokenType::GreaterEqual) ||
-           self.state.match_token(&TokenType::LessEqual) {
-            Ok(())
+    fn parse_comparison_operator(&mut self) -> ParseResult<Comparison> {
+        let comparison = if self.state.match_token(&TokenType::Equal) {
+            Comparison::Equal
+        } else if self.state.match_token(&TokenType::NotEqual) {
+            Comparison::NotEqual
+        } else if self.state.match_token(&TokenType::Like) {
+            Comparison::Equal // Like is treated as Equal for filters
+        } else if self.state.match_token(&TokenType::GreaterThan) {
+            Comparison::GreaterThan
+        } else if self.state.match_token(&TokenType::LessThan) {
+            Comparison::LessThan
+        } else if self.state.match_token(&TokenType::GreaterThanOrEqual) {
+            Comparison::GreaterThanOrEqual
+        } else if self.state.match_token(&TokenType::LessThanOrEqual) {
+            Comparison::LessThanOrEqual
         } else {
-            Err(ParseError::UnexpectedToken {
+            return Err(ParseError::UnexpectedToken {
                 expected: "comparison operator (=, !=, LIKE, >, <, >=, <=)".to_string(),
                 found: self.state.peek().lexeme.clone(),
                 line: self.state.peek().line,
                 column: self.state.peek().column,
-            })
-        }
+            });
+        };
+        Ok(comparison)
     }
     
     /// Parse string or identifier value
     fn parse_string_or_identifier(&mut self) -> ParseResult<String> {
-        if self.state.check(&TokenType::String) {
+        if self.state.check_string() {
             let token = self.state.advance();
             Ok(self.value_parser.parse_string_value(&token.lexeme))
         } else if self.state.check_identifier() {

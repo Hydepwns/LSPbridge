@@ -10,6 +10,12 @@ use super::{LanguageExtractor, utils};
 
 pub struct TypeScriptExtractor;
 
+impl Default for TypeScriptExtractor {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TypeScriptExtractor {
     pub fn new() -> Self {
         Self
@@ -86,7 +92,7 @@ impl LanguageExtractor for TypeScriptExtractor {
 
     fn get_parser(&self) -> Result<Parser> {
         let mut parser = Parser::new();
-        parser.set_language(&tree_sitter_typescript::language_typescript())?;
+        parser.set_language(tree_sitter_typescript::language_typescript())?;
         Ok(parser)
     }
 
@@ -256,7 +262,6 @@ impl LanguageExtractor for TypeScriptExtractor {
             }
 
             if self.is_scope_boundary(n) {
-                return;
             }
         });
 
@@ -356,7 +361,7 @@ impl LanguageExtractor for TypeScriptExtractor {
                     .map(|n| format!(": {}", utils::node_text(&n, source)))
                     .unwrap_or_default();
                 
-                format!("function {}{}{}", name, params, return_type)
+                format!("function {name}{params}{return_type}")
             }
             "arrow_function" => {
                 let params = node.child_by_field_name("parameters")
@@ -367,7 +372,7 @@ impl LanguageExtractor for TypeScriptExtractor {
                     .map(|n| format!(": {}", utils::node_text(&n, source)))
                     .unwrap_or_default();
                 
-                format!("{}{} => ...", params, return_type)
+                format!("{params}{return_type} => ...")
             }
             _ => utils::node_text(node, source).to_string(),
         }

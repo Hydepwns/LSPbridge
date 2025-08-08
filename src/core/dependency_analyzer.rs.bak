@@ -1,5 +1,0 @@
-// Re-export everything from the dependency_analyzer module
-pub use dependency_analyzer::*;
-
-// Module definition
-mod dependency_analyzer;

@@ -128,7 +128,7 @@ impl SpecificFormatConverter for RustAnalyzerConverter {
                 .ok_or_else(|| ParseError::InvalidFormat {
                     context: "Rust analyzer diagnostics".to_string(),
                     expected: "array of diagnostics".to_string(),
-                    found: format!("{:?}", diagnostics_array),
+                    found: format!("{diagnostics_array:?}"),
                 })?;
 
         let mut result = Vec::new();

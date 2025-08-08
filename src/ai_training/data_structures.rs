@@ -45,6 +45,7 @@ pub struct TrainingDataset {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Default)]
 pub struct DatasetStatistics {
     pub total_pairs: usize,
     pub languages: HashMap<String, usize>,
@@ -207,15 +208,3 @@ impl TrainingDataset {
     }
 }
 
-impl Default for DatasetStatistics {
-    fn default() -> Self {
-        Self {
-            total_pairs: 0,
-            languages: HashMap::new(),
-            diagnostic_types: HashMap::new(),
-            confidence_distribution: HashMap::new(),
-            avg_context_size: 0,
-            difficulty_levels: HashMap::new(),
-        }
-    }
-}

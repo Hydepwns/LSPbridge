@@ -1,7 +1,7 @@
 //! File-based configuration watcher
 
 use super::{ConfigWatcher, ConfigChangeNotifier, ConfigChange};
-use super::super::loader::FileLoader;
+use super::super::loader::{FileLoader, ConfigLoader};
 use super::super::types::DynamicConfig;
 use crate::core::errors::ConfigError;
 use async_trait::async_trait;

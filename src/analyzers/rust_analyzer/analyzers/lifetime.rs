@@ -7,6 +7,12 @@ pub struct LifetimeAnalyzer;
 
 impl AnalyzerBase for LifetimeAnalyzer {}
 
+impl Default for LifetimeAnalyzer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl LifetimeAnalyzer {
     pub fn new() -> Self {
         Self

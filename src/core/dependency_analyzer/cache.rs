@@ -11,6 +11,12 @@ pub struct DependencyCache {
     ast_cache: HashMap<PathBuf, tree_sitter::Tree>,
 }
 
+impl Default for DependencyCache {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl DependencyCache {
     pub fn new() -> Self {
         Self {

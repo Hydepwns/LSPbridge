@@ -118,7 +118,7 @@ impl AITrainingCommand {
                 // This is simplified - in reality we'd need the actual fix
                 let pair = TrainingPair::new(
                     format!("// Code with error at line {}", diag.range.start.line),
-                    format!("// Fixed code"),
+                    "// Fixed code".to_string(),
                     vec![diag.clone()],
                     crate::core::semantic_context::SemanticContext::default(),
                     detect_language(&file_path),
@@ -196,7 +196,7 @@ impl AITrainingCommand {
 
             // Create dataset
             let mut dataset = TrainingDataset::new(
-                format!("{} Synthetic Dataset", language),
+                format!("{language} Synthetic Dataset"),
                 "Synthetic training data with injected errors".to_string(),
             );
 
@@ -281,7 +281,7 @@ impl AITrainingCommand {
             print!("\x1B[2J\x1B[1;1H");
 
             // Display progress
-            println!("📊 Progress: {}/{} pairs annotated", annotated_count, total_pairs);
+            println!("📊 Progress: {annotated_count}/{total_pairs} pairs annotated");
             println!("📍 Current: {}/{}\n", idx + 1, total_pairs);
 
             // Display pair information
@@ -450,7 +450,7 @@ impl AITrainingCommand {
             OutputFormat::Claude => format_annotation_report_claude(&report, &training_dataset),
         };
 
-        println!("{}", output);
+        println!("{output}");
 
         Ok(())
     }
@@ -486,15 +486,9 @@ fn format_annotation_report_markdown(
 
     let _ = writeln!(&mut output, "# Annotation Report: {}\n", dataset.name);
     let _ = writeln!(&mut output, "## Summary");
-    let _ = writeln!(&mut output, "- **Total Pairs**: {}", report.total_pairs);
-    let _ = writeln!(&mut output, "- **Annotated**: {}", report.annotated_count);
-    let _ = writeln!(
-        &mut output,
-        "- **Completion**: {:.1}%",
-        (report.annotated_count as f64 / report.total_pairs as f64) * 100.0
-    );
-    let _ = writeln!(&mut output, "- **Sessions**: {}", report.sessions.len());
-    let _ = writeln!(&mut output, "- **Unique Annotators**: {}", report.unique_annotators);
+    let _ = writeln!(&mut output, "- **Total Annotated**: {}", report.total_annotated);
+    let _ = writeln!(&mut output, "- **Language Count**: {}", report.language_breakdown.len());
+    let _ = writeln!(&mut output, "- **Diagnostic Types**: {}", report.diagnostic_type_breakdown.len());
     let _ = writeln!(&mut output);
 
     let _ = writeln!(&mut output, "## Quality Distribution");
@@ -502,40 +496,40 @@ fn format_annotation_report_markdown(
         &mut output,
         "- Perfect: {} ({:.1}%)",
         report.quality_distribution.get(&FixQuality::Perfect).unwrap_or(&0),
-        (report.quality_distribution.get(&FixQuality::Perfect).unwrap_or(&0) as f64
-            / report.annotated_count as f64)
+        (*report.quality_distribution.get(&FixQuality::Perfect).unwrap_or(&0) as f64
+            / report.total_annotated.max(1) as f64)
             * 100.0
     );
     let _ = writeln!(
         &mut output,
         "- Good: {} ({:.1}%)",
         report.quality_distribution.get(&FixQuality::Good).unwrap_or(&0),
-        (report.quality_distribution.get(&FixQuality::Good).unwrap_or(&0) as f64
-            / report.annotated_count as f64)
+        (*report.quality_distribution.get(&FixQuality::Good).unwrap_or(&0) as f64
+            / report.total_annotated.max(1) as f64)
             * 100.0
     );
     let _ = writeln!(
         &mut output,
         "- Acceptable: {} ({:.1}%)",
         report.quality_distribution.get(&FixQuality::Acceptable).unwrap_or(&0),
-        (report.quality_distribution.get(&FixQuality::Acceptable).unwrap_or(&0) as f64
-            / report.annotated_count as f64)
+        (*report.quality_distribution.get(&FixQuality::Acceptable).unwrap_or(&0) as f64
+            / report.total_annotated.max(1) as f64)
             * 100.0
     );
     let _ = writeln!(
         &mut output,
         "- Poor: {} ({:.1}%)",
         report.quality_distribution.get(&FixQuality::Poor).unwrap_or(&0),
-        (report.quality_distribution.get(&FixQuality::Poor).unwrap_or(&0) as f64
-            / report.annotated_count as f64)
+        (*report.quality_distribution.get(&FixQuality::Poor).unwrap_or(&0) as f64
+            / report.total_annotated.max(1) as f64)
             * 100.0
     );
     let _ = writeln!(
         &mut output,
         "- Incorrect: {} ({:.1}%)",
         report.quality_distribution.get(&FixQuality::Incorrect).unwrap_or(&0),
-        (report.quality_distribution.get(&FixQuality::Incorrect).unwrap_or(&0) as f64
-            / report.annotated_count as f64)
+        (*report.quality_distribution.get(&FixQuality::Incorrect).unwrap_or(&0) as f64
+            / report.total_annotated.max(1) as f64)
             * 100.0
     );
 

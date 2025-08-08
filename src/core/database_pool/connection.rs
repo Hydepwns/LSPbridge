@@ -2,7 +2,6 @@ use anyhow::Result;
 use rusqlite::Connection;
 use std::sync::Arc;
 use std::time::Instant;
-use tracing::debug;
 
 use crate::core::database_pool::{DatabasePool, ConnectionStats};
 

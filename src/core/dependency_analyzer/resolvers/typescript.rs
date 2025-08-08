@@ -5,6 +5,12 @@ use tree_sitter::Node;
 
 pub struct TypeScriptResolver;
 
+impl Default for TypeScriptResolver {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TypeScriptResolver {
     pub fn new() -> Self {
         Self
@@ -112,55 +118,52 @@ impl LanguageResolver for TypeScriptResolver {
         let mut cursor = root.walk();
         
         self.visit_nodes(&mut cursor, |node| {
-            match node.kind() {
-                "export_statement" => {
-                    if let Some(declaration) = node.child_by_field_name("declaration") {
-                        let line = node.start_position().row as u32;
-                        match declaration.kind() {
-                            "function_declaration" => {
-                                if let Some(name_node) = declaration.child_by_field_name("name") {
-                                    if let Ok(name) = name_node.utf8_text(source.as_bytes()) {
-                                        exports.push(ExportInfo {
-                                            symbol_name: name.to_string(),
-                                            export_type: ExportType::Function,
-                                            line,
-                                        });
-                                    }
+            if node.kind() == "export_statement" {
+                if let Some(declaration) = node.child_by_field_name("declaration") {
+                    let line = node.start_position().row as u32;
+                    match declaration.kind() {
+                        "function_declaration" => {
+                            if let Some(name_node) = declaration.child_by_field_name("name") {
+                                if let Ok(name) = name_node.utf8_text(source.as_bytes()) {
+                                    exports.push(ExportInfo {
+                                        symbol_name: name.to_string(),
+                                        export_type: ExportType::Function,
+                                        line,
+                                    });
                                 }
                             }
-                            "class_declaration" => {
-                                if let Some(name_node) = declaration.child_by_field_name("name") {
-                                    if let Ok(name) = name_node.utf8_text(source.as_bytes()) {
-                                        exports.push(ExportInfo {
-                                            symbol_name: name.to_string(),
-                                            export_type: ExportType::Class,
-                                            line,
-                                        });
-                                    }
+                        }
+                        "class_declaration" => {
+                            if let Some(name_node) = declaration.child_by_field_name("name") {
+                                if let Ok(name) = name_node.utf8_text(source.as_bytes()) {
+                                    exports.push(ExportInfo {
+                                        symbol_name: name.to_string(),
+                                        export_type: ExportType::Class,
+                                        line,
+                                    });
                                 }
                             }
-                            "variable_declaration" => {
-                                // Extract variable names
-                                let mut var_cursor = declaration.walk();
-                                self.visit_nodes(&mut var_cursor, |n| {
-                                    if n.kind() == "variable_declarator" {
-                                        if let Some(name_node) = n.child_by_field_name("name") {
-                                            if let Ok(name) = name_node.utf8_text(source.as_bytes()) {
-                                                exports.push(ExportInfo {
-                                                    symbol_name: name.to_string(),
-                                                    export_type: ExportType::Variable,
-                                                    line,
-                                                });
-                                            }
+                        }
+                        "variable_declaration" => {
+                            // Extract variable names
+                            let mut var_cursor = declaration.walk();
+                            self.visit_nodes(&mut var_cursor, |n| {
+                                if n.kind() == "variable_declarator" {
+                                    if let Some(name_node) = n.child_by_field_name("name") {
+                                        if let Ok(name) = name_node.utf8_text(source.as_bytes()) {
+                                            exports.push(ExportInfo {
+                                                symbol_name: name.to_string(),
+                                                export_type: ExportType::Variable,
+                                                line,
+                                            });
                                         }
                                     }
-                                });
-                            }
-                            _ => {}
+                                }
+                            });
                         }
+                        _ => {}
                     }
                 }
-                _ => {}
             }
         });
         

@@ -6,6 +6,12 @@ pub struct QueryValidator {
     parser: QueryParser,
 }
 
+impl Default for QueryValidator {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl QueryValidator {
     pub fn new() -> Self {
         Self {

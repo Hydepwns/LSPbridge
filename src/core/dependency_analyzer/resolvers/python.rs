@@ -5,6 +5,12 @@ use tree_sitter::Node;
 
 pub struct PythonResolver;
 
+impl Default for PythonResolver {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl PythonResolver {
     pub fn new() -> Self {
         Self
@@ -59,7 +65,7 @@ impl LanguageResolver for PythonResolver {
             .and_then(|n| n.utf8_text(source.as_bytes()).ok())?;
 
         if let Some(resolved_path) = self.resolve_import_path(current_file, module_name) {
-            let symbols = self.extract_python_import_symbols(&node, source);
+            let symbols = self.extract_python_import_symbols(node, source);
             return Some(ImportDependency {
                 source_file: resolved_path,
                 imported_symbols: symbols,
@@ -75,7 +81,7 @@ impl LanguageResolver for PythonResolver {
 
         // Convert . to / and look for .py files
         let file_path = import_path.replace(".", "/");
-        let py_path = current_dir.join(format!("{}.py", file_path));
+        let py_path = current_dir.join(format!("{file_path}.py"));
 
         if py_path.exists() {
             Some(py_path)

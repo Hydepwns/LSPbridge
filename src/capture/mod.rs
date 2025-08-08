@@ -5,7 +5,6 @@ pub use capture_service::CaptureService;
 pub use memory_cache::MemoryCache;
 
 use crate::core::{
-    DiagnosticsCache, PrivacyFilter as PrivacyFilterTrait, FormatConverter as FormatConverterTrait, 
     DiagnosticSnapshot, RawDiagnostics, PrivacyPolicy
 };
 use crate::privacy::privacy_filter::PrivacyFilter;

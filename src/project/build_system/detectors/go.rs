@@ -1,4 +1,4 @@
-use anyhow::{Context, Result};
+use anyhow::Result;
 use std::path::Path;
 
 use crate::project::build_system::types::{BuildCommands, BuildConfig, BuildSystem};
@@ -55,13 +55,13 @@ impl BuildSystemDetector for GoDetector {
         }
 
         // Extract module name and dependencies
-        let mut module_name = String::new();
+        let mut _module_name = String::new();
         let mut dependencies = vec![];
 
         for line in content.lines() {
             let line = line.trim();
             if line.starts_with("module ") {
-                module_name = line[7..].trim().to_string();
+                _module_name = line[7..].trim().to_string();
             } else if line.starts_with("require ") && line.contains("(") {
                 // Multi-line require block
                 continue;

@@ -10,7 +10,6 @@ use backend::{sqlite::SqliteBackend, StorageBackend};
 use cache::QueryCache;
 use std::path::Path;
 use std::time::{Duration, SystemTime};
-use tracing::info;
 
 pub use types::*;
 

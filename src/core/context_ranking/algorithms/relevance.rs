@@ -60,8 +60,8 @@ impl<'a> RelevanceScorer<'a> {
         if diagnostic.message.contains(&class_ctx.name) {
             priority *= 1.4;
             explanation_parts.push(format!(
-                "{} '{}' is mentioned in the error message",
-                class_ctx.kind, class_ctx.name
+                "Class '{}' is mentioned in the error message",
+                class_ctx.name
             ));
         }
 
@@ -78,8 +78,8 @@ impl<'a> RelevanceScorer<'a> {
 
         let explanation = if explanation_parts.is_empty() {
             format!(
-                "{} '{}' contains the error location",
-                class_ctx.kind, class_ctx.name
+                "Class '{}' contains the error location",
+                class_ctx.name
             )
         } else {
             explanation_parts.join("; ")
@@ -112,33 +112,28 @@ impl<'a> RelevanceScorer<'a> {
                 .join(", ");
             return (
                 priority.min(1.0),
-                format!("Import {} directly mentioned in error: {}", mentioned, imported_names),
+                format!("Import {mentioned} directly mentioned in error: {imported_names}"),
             );
         }
 
         // Check if source module is mentioned
-        if let Some(source) = &import_ctx.source {
+        {  // source is always present
+            let source = &import_ctx.source;
             if diagnostic.message.contains(source) {
                 priority *= 1.2;
                 return (
                     priority.min(1.0),
                     format!(
-                        "Import source '{}' mentioned in error: {}",
-                        source, imported_names
+                        "Import source '{source}' mentioned in error: {imported_names}"
                     ),
                 );
             }
         }
 
-        let explanation = if let Some(source) = &import_ctx.source {
+        let explanation = {
+            let source = &import_ctx.source;
             format!(
-                "Import {} from '{}' may provide context for error resolution",
-                imported_names, source
-            )
-        } else {
-            format!(
-                "Import {} may provide context for error resolution",
-                imported_names
+                "Import {imported_names} from '{source}' may provide context for error resolution"
             )
         };
 
@@ -267,8 +262,7 @@ impl<'a> RelevanceScorer<'a> {
                 return (
                     priority.min(1.0),
                     format!(
-                        "Dependency exports symbol '{}' mentioned in error",
-                        symbol
+                        "Dependency exports symbol '{symbol}' mentioned in error"
                     ),
                 );
             }

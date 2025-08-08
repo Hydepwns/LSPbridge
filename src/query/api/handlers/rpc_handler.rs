@@ -1,4 +1,4 @@
-use crate::query::api::{QueryApi, types::{QueryRequest, QueryPlan}};
+use crate::query::api::{QueryApi, types::QueryRequest};
 use anyhow::Result;
 use std::sync::Arc;
 

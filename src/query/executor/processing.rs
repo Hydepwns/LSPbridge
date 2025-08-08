@@ -30,7 +30,7 @@ impl AggregationProcessor {
         }
 
         // Process each group
-        for (group_key, values) in data {
+        for (_group_key, values) in data {
             let mut row_values = Vec::new();
             
             for agg in aggregations {
@@ -62,13 +62,13 @@ impl AggregationProcessor {
                 if field == "*" {
                     "count".to_string()
                 } else {
-                    format!("count_{}", field)
+                    format!("count_{field}")
                 }
             }
-            QueryAggregation::Sum(field) => format!("sum_{}", field),
-            QueryAggregation::Average(field) => format!("avg_{}", field),
-            QueryAggregation::Min(field) => format!("min_{}", field),
-            QueryAggregation::Max(field) => format!("max_{}", field),
+            QueryAggregation::Sum(field) => format!("sum_{field}"),
+            QueryAggregation::Average(field) => format!("avg_{field}"),
+            QueryAggregation::Min(field) => format!("min_{field}"),
+            QueryAggregation::Max(field) => format!("max_{field}"),
         }
     }
 

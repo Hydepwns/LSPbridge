@@ -7,6 +7,12 @@ use regex::Regex;
 
 pub struct ContextAnalyzer;
 
+impl Default for ContextAnalyzer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ContextAnalyzer {
     pub fn new() -> Self {
         Self

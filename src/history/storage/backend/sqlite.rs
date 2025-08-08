@@ -26,7 +26,7 @@ impl SqliteBackend {
             .await
             .map_err(|e| DatabaseError::Sqlite {
                 operation: "create_pool".to_string(),
-                message: format!("Failed to create connection pool: {}", e),
+                message: format!("Failed to create connection pool: {e}"),
                 source: rusqlite::Error::SqliteFailure(
                     rusqlite::ffi::Error::new(rusqlite::ffi::SQLITE_CANTOPEN),
                     Some(e.to_string()),
@@ -59,8 +59,8 @@ impl SqliteBackend {
         time.duration_since(UNIX_EPOCH)
             .map_err(|e| DatabaseError::Serialization {
                 data_type: "SystemTime".to_string(),
-                reason: format!("Invalid timestamp: {}", e),
-                source: bincode::ErrorKind::Custom(format!("timestamp error: {}", e)).into(),
+                reason: format!("Invalid timestamp: {e}"),
+                source: bincode::ErrorKind::Custom(format!("timestamp error: {e}")).into(),
             })
             .map(|d| d.as_secs() as i64)
     }
@@ -69,11 +69,11 @@ impl SqliteBackend {
 #[async_trait]
 impl StorageBackend for SqliteBackend {
     async fn initialize(&mut self, _config: &HistoryConfig) -> Result<(), DatabaseError> {
-        self.pool.with_connection(|conn| Self::init_schema(conn))
+        self.pool.with_connection(Self::init_schema)
             .await
             .map_err(|e| DatabaseError::Sqlite {
                 operation: "init_schema".to_string(),
-                message: format!("Failed to initialize schema: {}", e),
+                message: format!("Failed to initialize schema: {e}"),
                 source: rusqlite::Error::SqliteFailure(
                     rusqlite::ffi::Error::new(rusqlite::ffi::SQLITE_CANTOPEN),
                     Some(e.to_string()),
@@ -119,7 +119,7 @@ impl StorageBackend for SqliteBackend {
         }).await
         .map_err(|e| DatabaseError::Sqlite {
             operation: "record_snapshot".to_string(),
-            message: format!("Failed to record snapshot: {}", e),
+            message: format!("Failed to record snapshot: {e}"),
             source: rusqlite::Error::SqliteFailure(
                 rusqlite::ffi::Error::new(rusqlite::ffi::SQLITE_CANTOPEN),
                 Some(e.to_string()),
@@ -153,13 +153,13 @@ impl StorageBackend for SqliteBackend {
             );
 
             if let Some(since_timestamp) = since_ts {
-                query.push_str(&format!(" AND timestamp >= {}", since_timestamp));
+                query.push_str(&format!(" AND timestamp >= {since_timestamp}"));
             }
 
             query.push_str(" ORDER BY timestamp DESC");
 
             if let Some(limit_value) = limit {
-                query.push_str(&format!(" LIMIT {}", limit_value));
+                query.push_str(&format!(" LIMIT {limit_value}"));
             }
 
             let mut stmt = conn.prepare(&query)?;
@@ -186,7 +186,7 @@ impl StorageBackend for SqliteBackend {
         }).await
         .map_err(|e| DatabaseError::Sqlite {
             operation: "get_snapshots_for_file".to_string(),
-            message: format!("Failed to get snapshots: {}", e),
+            message: format!("Failed to get snapshots: {e}"),
             source: rusqlite::Error::SqliteFailure(
                 rusqlite::ffi::Error::new(rusqlite::ffi::SQLITE_CANTOPEN),
                 Some(e.to_string()),
@@ -296,7 +296,7 @@ impl StorageBackend for SqliteBackend {
         let query = format!(
             r#"
             SELECT 
-                (timestamp / {}) * {} as time_bucket,
+                (timestamp / {interval_secs}) * {interval_secs} as time_bucket,
                 COUNT(*) as snapshot_count,
                 SUM(error_count) as total_errors,
                 SUM(warning_count) as total_warnings,
@@ -304,11 +304,10 @@ impl StorageBackend for SqliteBackend {
                 AVG(warning_count) as avg_warnings,
                 COUNT(DISTINCT file_path) as unique_files
             FROM diagnostic_snapshots
-            WHERE timestamp >= {} AND timestamp <= {}
+            WHERE timestamp >= {start_ts} AND timestamp <= {end_ts}
             GROUP BY time_bucket
             ORDER BY time_bucket
-            "#,
-            interval_secs, interval_secs, start_ts, end_ts
+            "#
         );
 
         let points = self.pool.with_read_connection(move |conn| {

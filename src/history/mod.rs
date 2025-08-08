@@ -181,7 +181,7 @@ impl HistoryManager {
     }
 
     /// Clean old data from the history storage
-    pub async fn clean_old_data(&self, cutoff_date: chrono::DateTime<chrono::Utc>) -> Result<usize> {
+    pub async fn clean_old_data(&self, _cutoff_date: chrono::DateTime<chrono::Utc>) -> Result<usize> {
         // For now, we don't have a specific method in HistoryStorage for this
         // This would typically be implemented in the storage layer
         Ok(0)

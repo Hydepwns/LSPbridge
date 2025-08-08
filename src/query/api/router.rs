@@ -53,7 +53,7 @@ impl QueryRouter {
         let query = self.validator.validate_query(query_str)?;
 
         Ok(QueryPlan {
-            query: format!("{:?}", query),
+            query: format!("{query:?}"),
             estimated_rows: None,
             indexes_used: vec![],
             optimization_hints: self.validator.get_optimization_hints(&query),

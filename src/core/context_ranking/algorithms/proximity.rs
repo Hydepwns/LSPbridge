@@ -6,7 +6,7 @@ pub struct ProximityScorer;
 impl ProximityScorer {
     /// Calculate proximity score based on distance from diagnostic location
     pub fn score_by_distance(item_line: u32, diagnostic_line: u32, max_distance: u32) -> f32 {
-        let distance = (item_line as i32 - diagnostic_line as i32).abs() as u32;
+        let distance = (item_line as i32 - diagnostic_line as i32).unsigned_abs();
         
         if distance == 0 {
             1.0

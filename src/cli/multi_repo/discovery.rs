@@ -3,7 +3,7 @@
 //! This module provides utilities for discovering repositories, analyzing their
 //! structure, and managing repository metadata and relationships.
 
-use anyhow::{Context, Result};
+use anyhow::Result;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
@@ -65,7 +65,7 @@ impl RepositoryDiscovery {
     /// Discover repositories in the given path
     pub async fn discover_repositories(&self, root_path: &Path) -> Result<Vec<RepositoryCandidate>> {
         let mut candidates = Vec::new();
-        let mut visited_paths = std::collections::HashSet::new();
+        let mut repository_roots = std::collections::HashSet::new();
 
         let walker = WalkDir::new(root_path)
             .max_depth(self.max_depth)
@@ -74,21 +74,19 @@ impl RepositoryDiscovery {
         for entry in walker.into_iter().filter_map(|e| e.ok()) {
             let path = entry.path();
             
-            // Skip if we've already processed this path
-            if visited_paths.contains(path) {
+            // Skip if this path is inside an already discovered repository
+            let is_inside_repo = repository_roots.iter().any(|repo_root: &PathBuf| {
+                path.starts_with(repo_root) && path != repo_root.as_path()
+            });
+            
+            if is_inside_repo {
                 continue;
             }
 
             if self.is_repository_root(path).await? {
                 let candidate = self.analyze_repository_candidate(path).await?;
+                repository_roots.insert(path.to_path_buf());
                 candidates.push(candidate);
-                
-                // Mark this path and its parents as visited to avoid duplicates
-                let mut current = Some(path);
-                while let Some(p) = current {
-                    visited_paths.insert(p.to_path_buf());
-                    current = p.parent();
-                }
             }
         }
 
@@ -345,7 +343,7 @@ impl RepositoryDiscovery {
     /// Get Git remote URL
     async fn get_git_remote_url(&self, path: &Path) -> Result<String> {
         let output = tokio::process::Command::new("git")
-            .args(&["config", "--get", "remote.origin.url"])
+            .args(["config", "--get", "remote.origin.url"])
             .current_dir(path)
             .output()
             .await?;
@@ -360,7 +358,7 @@ impl RepositoryDiscovery {
     /// Get current Git branch
     async fn get_git_current_branch(&self, path: &Path) -> Result<String> {
         let output = tokio::process::Command::new("git")
-            .args(&["rev-parse", "--abbrev-ref", "HEAD"])
+            .args(["rev-parse", "--abbrev-ref", "HEAD"])
             .current_dir(path)
             .output()
             .await?;
@@ -375,7 +373,7 @@ impl RepositoryDiscovery {
     /// Check if Git repository has uncommitted changes
     async fn check_git_dirty(&self, path: &Path) -> Result<bool> {
         let output = tokio::process::Command::new("git")
-            .args(&["status", "--porcelain"])
+            .args(["status", "--porcelain"])
             .current_dir(path)
             .output()
             .await?;

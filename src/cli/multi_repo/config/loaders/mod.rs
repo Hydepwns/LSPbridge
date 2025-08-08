@@ -10,12 +10,12 @@ use std::path::Path;
 use crate::cli::multi_repo::config::types::MultiRepoCliConfig;
 
 /// Trait for configuration loading strategies
-pub trait ConfigLoader {
+pub trait ConfigLoader: Send + Sync {
     /// Load configuration from a file
-    async fn load_from_file(&self, path: &Path) -> Result<MultiRepoCliConfig>;
+    fn load_from_file(&self, path: &Path) -> Result<MultiRepoCliConfig>;
     
     /// Save configuration to a file
-    async fn save_to_file(&self, config: &MultiRepoCliConfig, path: &Path) -> Result<()>;
+    fn save_to_file(&self, config: &MultiRepoCliConfig, path: &Path) -> Result<()>;
     
     /// Check if the loader supports the given file extension
     fn supports_extension(&self, extension: &str) -> bool;

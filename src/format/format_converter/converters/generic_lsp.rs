@@ -80,7 +80,7 @@ impl SpecificFormatConverter for GenericLSPConverter {
                 .ok_or_else(|| ParseError::InvalidFormat {
                     context: "Generic LSP diagnostics".to_string(),
                     expected: "array of diagnostics".to_string(),
-                    found: format!("{:?}", diagnostics_array),
+                    found: format!("{diagnostics_array:?}"),
                 })?;
 
         let mut result = Vec::new();
@@ -93,7 +93,7 @@ impl SpecificFormatConverter for GenericLSPConverter {
         Ok(result)
     }
 
-    fn can_handle(&self, source: &str) -> bool {
+    fn can_handle(&self, _source: &str) -> bool {
         // Generic LSP converter can handle any source
         // but should be used as a fallback
         true

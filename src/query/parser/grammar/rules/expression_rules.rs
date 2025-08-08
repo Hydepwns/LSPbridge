@@ -1,7 +1,6 @@
 //! Expression-level grammar rules
 
 use super::super::types::{ParserState, ParsingContext, ParseResult, ValueParser, DefaultValueParser};
-use super::super::super::ast::*;
 use super::super::super::lexer::TokenType;
 use crate::core::errors::ParseError;
 
@@ -197,14 +196,54 @@ impl<'a> ExpressionRules for ExpressionRuleParser<'a> {
     /// Parse field reference
     /// field_reference = identifier | identifier DOT identifier
     fn parse_field_reference(&mut self) -> ParseResult<FieldReference> {
-        let first_token = self.state.consume(TokenType::Identifier, "Expected field name")?;
+        // First part can be identifier or table name token
+        let first_token = if self.state.check_identifier() {
+            self.state.advance()
+        } else if self.state.check(&TokenType::Diagnostics) ||
+                  self.state.check(&TokenType::Files) ||
+                  self.state.check(&TokenType::History) ||
+                  self.state.check(&TokenType::Trends) ||
+                  self.state.check(&TokenType::Errors) ||
+                  self.state.check(&TokenType::Warnings) {
+            self.state.advance()
+        } else {
+            return Err(ParseError::UnexpectedToken {
+                expected: "field name".to_string(),
+                found: self.state.peek().lexeme.clone(),
+                line: self.state.peek().line,
+                column: self.state.peek().column,
+            });
+        };
+        
         let mut name = first_token.lexeme.clone();
         let mut qualified = false;
         
         // Check for qualified field (table.field)
         if self.state.match_token(&TokenType::Dot) {
             qualified = true;
-            let field_token = self.state.consume(TokenType::Identifier, "Expected field name after '.'")?;
+            // Second part after dot can also be identifier or keyword
+            let field_token = if self.state.check_identifier() {
+                self.state.advance()
+            } else if self.state.check(&TokenType::Diagnostics) ||
+                      self.state.check(&TokenType::Files) ||
+                      self.state.check(&TokenType::History) ||
+                      self.state.check(&TokenType::Trends) ||
+                      self.state.check(&TokenType::Errors) ||
+                      self.state.check(&TokenType::Warnings) ||
+                      self.state.check(&TokenType::Count) ||
+                      self.state.check(&TokenType::Sum) ||
+                      self.state.check(&TokenType::Avg) ||
+                      self.state.check(&TokenType::Min) ||
+                      self.state.check(&TokenType::Max) {
+                self.state.advance()
+            } else {
+                return Err(ParseError::UnexpectedToken {
+                    expected: "field name after '.'".to_string(),
+                    found: self.state.peek().lexeme.clone(),
+                    line: self.state.peek().line,
+                    column: self.state.peek().column,
+                });
+            };
             name = format!("{}.{}", name, field_token.lexeme);
         }
         
@@ -245,10 +284,10 @@ impl<'a> ExpressionRuleParser<'a> {
         let operator = match &current.token_type {
             TokenType::Equal => ComparisonOperator::Equal,
             TokenType::NotEqual => ComparisonOperator::NotEqual,
-            TokenType::Greater => ComparisonOperator::Greater,
-            TokenType::GreaterEqual => ComparisonOperator::GreaterEqual,
-            TokenType::Less => ComparisonOperator::Less,
-            TokenType::LessEqual => ComparisonOperator::LessEqual,
+            TokenType::GreaterThan => ComparisonOperator::Greater,
+            TokenType::GreaterThanOrEqual => ComparisonOperator::GreaterEqual,
+            TokenType::LessThan => ComparisonOperator::Less,
+            TokenType::LessThanOrEqual => ComparisonOperator::LessEqual,
             TokenType::Like => ComparisonOperator::Like,
             _ => return Err(ParseError::UnexpectedToken {
                 expected: "comparison operator (=, !=, >, >=, <, <=, LIKE)".to_string(),

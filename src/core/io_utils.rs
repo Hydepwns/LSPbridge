@@ -55,7 +55,7 @@ where
     while let Some(line) = lines.next_line().await? {
         if !line.trim().is_empty() {
             let item: T = serde_json::from_str(&line)
-                .with_context(|| format!("Failed to parse JSON line: {}", line))?;
+                .with_context(|| format!("Failed to parse JSON line: {line}"))?;
             items.push(item);
         }
     }

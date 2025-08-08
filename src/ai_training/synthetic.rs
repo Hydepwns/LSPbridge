@@ -1,4 +1,5 @@
 use anyhow::{Context, Result};
+use clap::ValueEnum;
 use rand::{seq::SliceRandom, thread_rng};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -8,7 +9,7 @@ use crate::core::constants::{error_patterns, languages, metadata_keys};
 use crate::core::semantic_context::SemanticContext;
 use crate::core::types::{Diagnostic, Position, Range};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, ValueEnum)]
 pub enum DifficultyLevel {
     Beginner,     // Simple syntax errors
     Intermediate, // Type errors, missing imports
@@ -77,7 +78,7 @@ impl ErrorInjector {
         let patterns = self
             .patterns
             .get(language)
-            .context(format!("No patterns available for language: {}", language))?;
+            .context(format!("No patterns available for language: {language}"))?;
 
         let mut training_pairs = Vec::new();
         let mut rng = thread_rng();
@@ -130,7 +131,7 @@ impl ErrorInjector {
         examples_per_level: usize,
     ) -> Result<TrainingDataset> {
         let mut dataset = TrainingDataset::new(
-            format!("{} Gradient Dataset", language),
+            format!("{language} Gradient Dataset"),
             "Synthetic dataset with increasing difficulty levels".to_string(),
         );
 
@@ -188,7 +189,7 @@ impl ErrorInjector {
 
             // Create diagnostic
             let diagnostic = Diagnostic::new(
-                format!("synthetic.{}", language),
+                format!("synthetic.{language}"),
                 Range {
                     start: Position {
                         line: line_num as u32,
@@ -353,7 +354,7 @@ impl ErrorInjector {
     pub fn add_custom_pattern(&mut self, language: String, pattern: TrainingErrorPattern) {
         self.patterns
             .entry(language)
-            .or_insert_with(Vec::new)
+            .or_default()
             .push(pattern);
     }
 }

@@ -44,8 +44,7 @@ pub use config::{
     MultiRepoCliConfig,
     MultiRepoConfigManager,
     OutputFormat,
-    PathValidator,
-    SyncMode
+    PathValidator
 };
 
 pub use discovery::{
@@ -74,7 +73,8 @@ pub use workspace::{
     WorkspaceIndex,
     WorkspaceSynchronizer,
     WorkspaceSyncConfig,
-    WorkspaceSyncResult
+    WorkspaceSyncResult,
+    SyncMode
 };
 
 use anyhow::Result;
@@ -134,7 +134,7 @@ pub async fn initialize_config(config_path: Option<PathBuf>) -> Result<MultiRepo
         config::ConfigUtils::default_config_path().ok()
     });
 
-    let mut manager = MultiRepoConfigManager::new(config_path);
+    let mut manager = MultiRepoConfigManager::new(config_path)?;
     manager.load_configuration().await?;
     
     Ok(manager)
@@ -208,11 +208,11 @@ pub async fn synchronize_workspace(
     context: &crate::multi_repo::MultiRepoContext,
     sync_mode: Option<SyncMode>,
 ) -> Result<WorkspaceSyncResult> {
-    let mut synchronizer = WorkspaceSynchronizer::new(workspace_root);
-    
-    if let Some(mode) = sync_mode {
-        synchronizer = synchronizer.with_sync_mode(mode);
-    }
+    let synchronizer = if let Some(mode) = sync_mode {
+        WorkspaceSynchronizer::new(workspace_root).with_sync_mode(mode)
+    } else {
+        WorkspaceSynchronizer::new(workspace_root)
+    };
 
     synchronizer.synchronize_workspace(context).await
 }
@@ -263,7 +263,7 @@ pub mod utils {
     /// Format duration in human-readable format
     pub fn format_duration(seconds: u64) -> String {
         if seconds < 60 {
-            format!("{}s", seconds)
+            format!("{seconds}s")
         } else if seconds < 3600 {
             format!("{}m {}s", seconds / 60, seconds % 60)
         } else {
@@ -350,7 +350,7 @@ mod tests {
         let invalid_cmd = MultiRepoCommand::Analyze {
             min_impact: 1.5, // Invalid value > 1.0
             output: None,
-            format: OutputFormat::Table,
+            format: types::OutputFormat::Table,
         };
 
         assert!(utils::validate_command_args(&invalid_cmd).is_err());

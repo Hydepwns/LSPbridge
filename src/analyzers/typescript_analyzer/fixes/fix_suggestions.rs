@@ -6,6 +6,12 @@ pub struct TypeScriptFixSuggestionGenerator {
     type_inference: TypeInferenceHelper,
 }
 
+impl Default for TypeScriptFixSuggestionGenerator {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TypeScriptFixSuggestionGenerator {
     pub fn new() -> Self {
         Self {
@@ -72,8 +78,8 @@ impl TypeScriptFixSuggestionGenerator {
             let inferred_type = self.type_inference.infer_property_type(diagnostic, prop, context);
             
             suggestions.push(FixSuggestion {
-                description: format!("Add property '{}' to the type", prop),
-                code_snippet: Some(format!("{}: {};", prop, inferred_type)),
+                description: format!("Add property '{prop}' to the type"),
+                code_snippet: Some(format!("{prop}: {inferred_type};")),
                 confidence: if inferred_type != "unknown" { 0.8 } else { 0.6 },
                 is_automatic: false,
                 prerequisites: vec!["Access to type definition".to_string()],
@@ -114,7 +120,7 @@ impl TypeScriptFixSuggestionGenerator {
             for (name, import) in common_imports {
                 if symbol == name {
                     suggestions.push(FixSuggestion {
-                        description: format!("Add {} import", name),
+                        description: format!("Add {name} import"),
                         code_snippet: Some(import.to_string()),
                         confidence: 0.9,
                         is_automatic: true,
@@ -145,7 +151,7 @@ impl TypeScriptFixSuggestionGenerator {
                     };
                     
                     suggestions.push(FixSuggestion {
-                        description: format!("Add {} type argument(s)", num),
+                        description: format!("Add {num} type argument(s)"),
                         code_snippet: Some(type_params.to_string()),
                         confidence: 0.7,
                         is_automatic: false,

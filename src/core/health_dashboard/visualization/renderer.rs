@@ -92,8 +92,7 @@ impl DashboardRenderer {
         output.push_str(&format!(
             "# HELP lsp_bridge_active_alerts_total Number of active alerts\n\
              # TYPE lsp_bridge_active_alerts_total gauge\n\
-             lsp_bridge_active_alerts_total {}\n",
-            active_alerts
+             lsp_bridge_active_alerts_total {active_alerts}\n"
         ));
 
         output
@@ -139,7 +138,7 @@ impl DashboardRenderer {
             if !component.issues.is_empty() {
                 output.push_str("  Issues:\n");
                 for issue in &component.issues {
-                    output.push_str(&format!("    - {}\n", issue));
+                    output.push_str(&format!("    - {issue}\n"));
                 }
             }
         }

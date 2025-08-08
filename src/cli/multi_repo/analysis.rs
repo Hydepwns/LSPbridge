@@ -3,7 +3,7 @@
 //! This module provides analysis capabilities for cross-repository relationships,
 //! dependency tracking, impact analysis, and comprehensive reporting.
 
-use anyhow::{Context, Result};
+use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
@@ -195,7 +195,7 @@ impl MultiRepoAnalyzer {
                 
                 if impact_score >= self.min_impact_threshold {
                     shared_deps.push(SharedDependency {
-                        dependency_name: dependency,
+                        dependency_name: dependency.clone(),
                         affected_repositories: repos,
                         dependency_type: self.classify_dependency_type(&dependency),
                         impact_score,
@@ -313,25 +313,30 @@ impl MultiRepoAnalyzer {
         for repo in repositories {
             if let Some(impact_score) = impact_scores.get(&repo.id) {
                 if impact_score.overall_impact >= self.min_impact_threshold {
-                    // Placeholder diagnostic for demonstration
-                    aggregated.push(AggregatedDiagnostic {
+                    // Create a diagnostic for cross-repo impact
+                    let diagnostic = crate::core::types::Diagnostic {
                         id: format!("placeholder-{}", repo.id),
-                        severity: "info".to_string(),
+                        file: repo.path.to_string_lossy().to_string(),
+                        range: crate::core::types::Range {
+                            start: crate::core::types::Position { line: 0, character: 0 },
+                            end: crate::core::types::Position { line: 0, character: 0 },
+                        },
+                        severity: crate::core::types::DiagnosticSeverity::Information,
                         message: format!("Repository {} has cross-repo impact", repo.name),
-                        file_path: repo.path.clone(),
-                        line_number: 1,
-                        column_number: 1,
-                        source_repository: repo.id.clone(),
-                        affected_repositories: vec![repo.id.clone()], // Would include other affected repos
+                        code: None,
+                        source: "cross-repo-analyzer".to_string(),
+                        related_information: None,
+                        tags: None,
+                        data: None,
+                    };
+                    
+                    aggregated.push(AggregatedDiagnostic {
+                        diagnostic,
+                        repository_id: repo.id.clone(),
+                        repository_name: repo.name.clone(),
+                        relative_path: repo.path.clone(),
                         cross_repo_impact: impact_score.overall_impact,
-                        category: "cross_repo_impact".to_string(),
-                        metadata: serde_json::json!({
-                            "impact_breakdown": {
-                                "relationship_impact": impact_score.relationship_impact,
-                                "dependency_impact": impact_score.dependency_impact,
-                                "type_impact": impact_score.type_impact
-                            }
-                        }),
+                        related_diagnostics: vec![],
                     });
                 }
             }
@@ -394,7 +399,7 @@ impl MultiRepoAnalyzer {
     /// Calculate dependency impact for a repository
     fn calculate_dependency_impact(&self, repo_id: &str, shared_deps: &[SharedDependency]) -> f32 {
         shared_deps.iter()
-            .filter(|d| d.affected_repositories.contains(repo_id))
+            .filter(|d| d.affected_repositories.iter().any(|r| r == repo_id))
             .map(|d| d.impact_score)
             .sum::<f32>()
             .min(1.0)

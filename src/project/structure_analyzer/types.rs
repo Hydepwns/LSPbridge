@@ -83,7 +83,7 @@ impl ProjectStructure {
         }
 
         if let Some(lang) = self.get_main_language() {
-            summary.push_str(&format!("Main language: {}\n", lang));
+            summary.push_str(&format!("Main language: {lang}\n"));
         }
 
         if !self.source_dirs.is_empty() {
@@ -99,7 +99,7 @@ impl ProjectStructure {
         sorted_types.sort_by_key(|(_, count)| std::cmp::Reverse(**count));
 
         for (ext, count) in sorted_types.iter().take(10) {
-            summary.push_str(&format!("  .{}: {}\n", ext, count));
+            summary.push_str(&format!("  .{ext}: {count}\n"));
         }
 
         summary

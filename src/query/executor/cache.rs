@@ -213,6 +213,9 @@ impl QueryValidator {
             crate::query::parser::FromClause::Files => 15,
             crate::query::parser::FromClause::History => 50,
             crate::query::parser::FromClause::Trends => 100,
+            crate::query::parser::FromClause::Symbols => 20,
+            crate::query::parser::FromClause::References => 25,
+            crate::query::parser::FromClause::Projects => 30,
         };
 
         // Filter cost
@@ -261,8 +264,8 @@ impl QueryCost {
     /// Get cost category
     pub fn category(&self) -> CostCategory {
         match self.total() {
-            0..=50 => CostCategory::Low,
-            51..=150 => CostCategory::Medium,
+            0..=49 => CostCategory::Low,
+            50..=150 => CostCategory::Medium,
             151..=300 => CostCategory::High,
             _ => CostCategory::VeryHigh,
         }
@@ -312,12 +315,14 @@ impl QueryKeyGenerator {
         for filter in &query.filters {
             let filter_type = match filter {
                 crate::query::parser::QueryFilter::Path(_) => "path",
+                crate::query::parser::QueryFilter::File(_) => "file",
+                crate::query::parser::QueryFilter::Symbol(_) => "symbol",
                 crate::query::parser::QueryFilter::Severity(_) => "severity",
                 crate::query::parser::QueryFilter::Category(_) => "category",
                 crate::query::parser::QueryFilter::Message(_) => "message",
                 crate::query::parser::QueryFilter::TimeRange(_) => "time",
                 crate::query::parser::QueryFilter::FileCount(_) => "filecount",
-                crate::query::parser::QueryFilter::Custom(field, _) => return format!("custom:{}", field),
+                crate::query::parser::QueryFilter::Custom(field, _) => return format!("custom:{field}"),
             };
             filter_types.push(filter_type);
         }

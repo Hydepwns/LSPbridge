@@ -158,7 +158,7 @@ mod tests {
             super::super::lexer::TokenType::Select,
             super::super::lexer::TokenType::Asterisk,
             super::super::lexer::TokenType::From,
-            super::super::lexer::TokenType::Identifier,
+            super::super::lexer::TokenType::Identifier("diagnostics".to_string()),
         ];
         assert!(utils.validate_token_sequence(&valid_sequence));
 

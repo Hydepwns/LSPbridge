@@ -1,5 +1,0 @@
-// Re-export everything from the database_pool module
-pub use database_pool::*;
-
-// Module definition
-mod database_pool;

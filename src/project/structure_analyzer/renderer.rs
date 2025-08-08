@@ -37,7 +37,7 @@ impl TreeRenderer {
             node.name.clone()
         };
 
-        result.push_str(&format!("{}{}{}", prefix, connector, name));
+        result.push_str(&format!("{prefix}{connector}{name}"));
 
         if node.is_directory && node.file_count > 0 {
             result.push_str(&format!(" ({} files)", node.file_count));
@@ -46,12 +46,12 @@ impl TreeRenderer {
         result.push('\n');
 
         if node.is_directory && depth < max_depth {
-            let child_prefix = format!("{}│   ", prefix);
+            let child_prefix = format!("{prefix}│   ");
             for (i, child) in node.children.iter().enumerate() {
                 let is_last = i == node.children.len() - 1;
                 let _child_connector = if is_last { "└── " } else { "├── " };
                 let next_prefix = if is_last {
-                    format!("{}    ", prefix)
+                    format!("{prefix}    ")
                 } else {
                     child_prefix.clone()
                 };

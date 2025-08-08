@@ -59,6 +59,18 @@ impl BuildSystemDetector for PoetryDetector {
             }
         }
 
+        // Extract scripts
+        if let Some(scripts) = pyproject
+            .get("tool")
+            .and_then(|t| t.get("poetry"))
+            .and_then(|p| p.get("scripts"))
+            .and_then(|s| s.as_table())
+        {
+            for (name, _) in scripts {
+                commands.custom.insert(name.clone(), format!("poetry run {name}"));
+            }
+        }
+
         // Extract dependencies
         let mut dependencies = vec![];
         let mut dev_dependencies = vec![];

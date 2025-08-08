@@ -1,4 +1,4 @@
-use anyhow::{Context, Result};
+use anyhow::Result;
 use std::path::Path;
 use std::collections::HashSet;
 use regex::Regex;
@@ -40,26 +40,26 @@ impl BuildSystemDetector for MakeDetector {
         for target in &targets {
             match target.as_str() {
                 "build" | "all" => {
-                    commands.build = Some(format!("make {}", target));
+                    commands.build = Some(format!("make {target}"));
                 }
                 "test" | "tests" | "check" => {
                     if commands.test.is_none() {
-                        commands.test = Some(format!("make {}", target));
+                        commands.test = Some(format!("make {target}"));
                     }
                 }
                 "lint" | "lint-check" | "checkstyle" => {
                     if commands.lint.is_none() {
-                        commands.lint = Some(format!("make {}", target));
+                        commands.lint = Some(format!("make {target}"));
                     }
                 }
                 "format" | "fmt" | "lint-fix" => {
                     if commands.format.is_none() {
-                        commands.format = Some(format!("make {}", target));
+                        commands.format = Some(format!("make {target}"));
                     }
                 }
                 "run" | "start" | "serve" => {
                     if commands.run.is_none() {
-                        commands.run = Some(format!("make {}", target));
+                        commands.run = Some(format!("make {target}"));
                     }
                 }
                 "clean" => {
@@ -68,7 +68,7 @@ impl BuildSystemDetector for MakeDetector {
                 _ => {
                     // Add other targets as custom commands
                     if !target.starts_with('.') && !target.contains('%') {
-                        commands.custom.insert(target.clone(), format!("make {}", target));
+                        commands.custom.insert(target.clone(), format!("make {target}"));
                     }
                 }
             }
@@ -88,11 +88,11 @@ impl BuildSystemDetector for MakeDetector {
         }
         if targets.contains("dist") || targets.contains("package") {
             let target = if targets.contains("dist") { "dist" } else { "package" };
-            commands.custom.insert("package".to_string(), format!("make {}", target));
+            commands.custom.insert("package".to_string(), format!("make {target}"));
         }
         if targets.contains("doc") || targets.contains("docs") {
             let target = if targets.contains("doc") { "doc" } else { "docs" };
-            commands.custom.insert("docs".to_string(), format!("make {}", target));
+            commands.custom.insert("docs".to_string(), format!("make {target}"));
         }
 
         let mut config_files = vec![makefile_path];

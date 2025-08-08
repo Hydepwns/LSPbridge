@@ -4,26 +4,26 @@
 
 ### Core Commands
 
-#### `lsp-bridge export`
+#### `lspbridge export`
 
 ```bash
-lsp-bridge export [OPTIONS]
+lspbridge export [OPTIONS]
 
 Options:
-  --format <FORMAT>    Output format: json, markdown, claude [default: claude]
+  --format <FORMAT>    Output format: json, markdown, claude [default: json]
   --privacy <LEVEL>    Privacy level: default, strict, permissive [default: default]
   --errors-only        Only include error-level diagnostics
   --output <FILE>      Write to file instead of stdout
   --project <NAME>     Override project name
 
 Example:
-  cat diagnostics.json | lsp-bridge export --format claude --privacy strict
+  cat diagnostics.json | lspbridge export --format claude --privacy strict
 ```
 
-#### `lsp-bridge config`
+#### `lspbridge config`
 
 ```bash
-lsp-bridge config <SUBCOMMAND>
+lspbridge config <SUBCOMMAND>
 
 Subcommands:
   init        Initialize configuration file
@@ -34,10 +34,11 @@ Subcommands:
     --file <PATH>  Validate specific file
 ```
 
-#### `lsp-bridge serve`
+#### `lspbridge serve` (Not yet implemented)
 
 ```bash
-lsp-bridge serve [OPTIONS]
+# This command is planned for future releases
+lspbridge serve [OPTIONS]
 
 Options:
   --metrics-port <PORT>  Prometheus metrics port [default: 9090]
@@ -96,12 +97,12 @@ Controls how sensitive information is handled.
 
 ```rust
 pub enum PrivacyLevel {
-    /// Default privacy settings
-    Default,
-    /// Strict privacy - anonymize paths, remove sensitive strings
+    /// Maximum privacy protection - anonymize paths, remove sensitive strings
     Strict,
-    /// Permissive - minimal filtering
-    Permissive,
+    /// Balanced privacy (recommended)
+    Balanced,
+    /// Minimal privacy (internal use only)
+    Minimal,
 }
 ```
 
@@ -270,7 +271,7 @@ The VS Code extension exposes commands and APIs:
 
 ```typescript
 // Import the extension API
-import * as lspBridge from 'lsp-bridge';
+import * as lspBridge from 'lspbridge';
 
 // Export current diagnostics
 const result = await lspBridge.exportDiagnostics({
@@ -291,7 +292,7 @@ lspBridge.onDidExport((event) => {
 ### Neovim Lua API
 
 ```lua
-local lsp_bridge = require('lsp-bridge')
+local lsp_bridge = require('lspbridge')
 
 -- Export diagnostics
 lsp_bridge.export({
@@ -310,9 +311,9 @@ lsp_bridge.setup({
 })
 ```
 
-## REST API (Future)
+## REST API (Planned)
 
-When running with `lsp-bridge serve`, a REST API is available:
+When the `lspbridge serve` command is implemented, a REST API will be available:
 
 ### `POST /export`
 

@@ -139,7 +139,10 @@ impl AsyncDiagnosticProcessor {
         })
         .await;
 
-        let processing_time_ms = start_time.elapsed().as_millis() as u64;
+        let elapsed = start_time.elapsed();
+        let processing_time_ms = elapsed.as_millis() as u64;
+        // Ensure at least 1ms for very fast operations
+        let processing_time_ms = processing_time_ms.max(1);
 
         match result {
             Ok(Ok((semantic_context, ranked_context))) => Ok(ProcessedDiagnostic {
@@ -199,7 +202,10 @@ impl AsyncDiagnosticProcessor {
         let results: Vec<Result<ProcessedDiagnostic>> =
             self.process_diagnostics_stream(stream).collect().await;
 
-        let total_time_ms = start_time.elapsed().as_millis() as u64;
+        let elapsed = start_time.elapsed();
+        let total_time_ms = elapsed.as_millis() as u64;
+        // Ensure at least 1ms for very fast operations
+        let total_time_ms = total_time_ms.max(1);
 
         // Collect successful and failed results
         let processed_results: Vec<ProcessedDiagnostic> =

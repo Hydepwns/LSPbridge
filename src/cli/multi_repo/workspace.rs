@@ -5,7 +5,6 @@
 
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use tokio::fs;
 
@@ -304,8 +303,7 @@ impl WorkspaceSynchronizer {
             return true;
         }
 
-        if pattern.starts_with("*.") {
-            let extension = &pattern[2..];
+        if let Some(extension) = pattern.strip_prefix("*.") {
             return path.ends_with(extension);
         }
 
@@ -313,7 +311,22 @@ impl WorkspaceSynchronizer {
             // Simple wildcard matching
             let parts: Vec<&str> = pattern.split('*').collect();
             if parts.len() == 2 {
-                return path.starts_with(parts[0]) && path.ends_with(parts[1]);
+                // Handle patterns like "*lib*" - check if "lib" appears anywhere
+                if parts[0].is_empty() && parts[1].is_empty() {
+                    return true;
+                } else if parts[0].is_empty() && !parts[1].is_empty() {
+                    // Pattern like "*lib" - ends with lib
+                    return path.ends_with(parts[1]);
+                } else if !parts[0].is_empty() && parts[1].is_empty() {
+                    // Pattern like "lib*" - starts with lib
+                    return path.starts_with(parts[0]);
+                } else {
+                    // Pattern like "foo*bar" - starts with foo and ends with bar
+                    return path.starts_with(parts[0]) && path.ends_with(parts[1]);
+                }
+            } else if parts.len() == 3 && parts[0].is_empty() && parts[2].is_empty() {
+                // Pattern like "*lib*" - contains lib
+                return path.contains(parts[1]);
             }
         }
 
@@ -391,7 +404,7 @@ impl WorkspaceSynchronizer {
 
     /// Get last sync timestamp for a repository
     async fn get_last_sync_timestamp(&self, repo_id: &str) -> Result<chrono::DateTime<chrono::Utc>> {
-        let metadata_path = self.workspace_root.join("metadata").join(format!("{}.json", repo_id));
+        let metadata_path = self.workspace_root.join("metadata").join(format!("{repo_id}.json"));
         
         if metadata_path.exists() {
             let content = fs::read_to_string(metadata_path).await?;
@@ -399,7 +412,7 @@ impl WorkspaceSynchronizer {
             Ok(metadata.last_sync)
         } else {
             // Return Unix epoch if no previous sync
-            Ok(chrono::DateTime::from_timestamp(0, 0).unwrap_or_else(|| chrono::Utc::now()))
+            Ok(chrono::DateTime::from_timestamp(0, 0).unwrap_or_else(chrono::Utc::now))
         }
     }
 }

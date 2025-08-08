@@ -97,7 +97,7 @@ impl PersistentCache {
 
         let db_path = config.cache_dir.join("cache.db");
         let db = sled::open(&db_path)
-            .with_context(|| format!("Failed to open cache database at: {:?}", db_path))?;
+            .with_context(|| format!("Failed to open cache database at: {db_path:?}"))?;
 
         let entries_tree = db.open_tree("entries")?;
         let metadata_tree = db.open_tree("metadata")?;

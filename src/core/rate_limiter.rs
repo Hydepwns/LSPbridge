@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use std::collections::HashMap;
 use std::net::IpAddr;
 use std::sync::Arc;
@@ -275,17 +275,17 @@ pub struct RateLimitStats {
 pub fn extract_client_id(ip: Option<IpAddr>, user_agent: Option<&str>, api_key: Option<&str>) -> String {
     // Prefer API key if available (for authenticated requests)
     if let Some(key) = api_key {
-        return format!("api:{}", key);
+        return format!("api:{key}");
     }
 
     // Fall back to IP address
     if let Some(ip) = ip {
-        return format!("ip:{}", ip);
+        return format!("ip:{ip}");
     }
 
     // Use user agent as last resort (not ideal but better than nothing)
     if let Some(ua) = user_agent {
-        return format!("ua:{}", ua);
+        return format!("ua:{ua}");
     }
 
     // Default to anonymous if no identifier available

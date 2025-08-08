@@ -7,6 +7,12 @@ pub struct ConfigValidator {
     validation_rules: ValidationRules,
 }
 
+impl Default for ConfigValidator {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ConfigValidator {
     pub fn new() -> Self {
         Self {

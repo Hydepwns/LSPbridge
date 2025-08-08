@@ -22,7 +22,6 @@ use std::path::Path;
 use tree_sitter::{Node, Parser};
 
 use crate::core::types::Diagnostic;
-use crate::parser_analyzer;
 use extractors::{LanguageExtractor, utils};
 use extractors::{typescript::TypeScriptExtractor, rust::RustExtractor, python::PythonExtractor};
 
@@ -55,21 +54,22 @@ impl ContextExtractor {
     fn init_parsers(&mut self) -> Result<()> {
         // TypeScript/JavaScript
         let mut ts_parser = Parser::new();
-        ts_parser.set_language(&tree_sitter_typescript::language_typescript())?;
+        ts_parser.set_language(tree_sitter_typescript::language_typescript())?;
         self.parsers.insert("typescript".to_string(), ts_parser);
 
+        // JavaScript (uses TypeScript parser)
         let mut js_parser = Parser::new();
-        js_parser.set_language(&tree_sitter_javascript::language())?;
+        js_parser.set_language(tree_sitter_typescript::language_tsx())?;
         self.parsers.insert("javascript".to_string(), js_parser);
 
         // Rust
         let mut rust_parser = Parser::new();
-        rust_parser.set_language(&tree_sitter_rust::language())?;
+        rust_parser.set_language(tree_sitter_rust::language())?;
         self.parsers.insert("rust".to_string(), rust_parser);
 
         // Python
         let mut python_parser = Parser::new();
-        python_parser.set_language(&tree_sitter_python::language())?;
+        python_parser.set_language(tree_sitter_python::language())?;
         self.parsers.insert("python".to_string(), python_parser);
 
         Ok(())
@@ -179,7 +179,7 @@ impl ContextExtractor {
         &self,
         node: &Node,
         source: &str,
-        language: Language,
+        _language: Language,
         extractor: &dyn LanguageExtractor,
     ) -> Result<CallHierarchy> {
         let mut hierarchy = CallHierarchy::default();
@@ -202,7 +202,7 @@ impl ContextExtractor {
     fn extract_dependencies(
         &self,
         imports: &[ImportContext],
-        current_file: &str,
+        _current_file: &str,
     ) -> Result<Vec<DependencyInfo>> {
         let mut dependencies = Vec::new();
 
@@ -227,7 +227,7 @@ impl ContextExtractor {
     }
 
     fn calculate_relevance_score(&self, context: &SemanticContext) -> f32 {
-        let mut score = 0.0;
+        let mut score = 0.0_f32;
 
         // Base score components
         if context.function_context.is_some() {
@@ -249,7 +249,7 @@ impl ContextExtractor {
             score += 0.1;
         }
 
-        score.min(1.0)
+        score.min(1.0_f32)
     }
 }
 
@@ -274,6 +274,7 @@ function processUser(user: User): string {
 "#;
 
         let diagnostic = Diagnostic {
+            id: "test-diag-1".to_string(),
             file: "test.ts".to_string(),
             range: Range {
                 start: Position { line: 7, character: 12 },
@@ -281,7 +282,7 @@ function processUser(user: User): string {
             },
             severity: DiagnosticSeverity::Error,
             code: Some("TS2339".to_string()),
-            source: Some("typescript".to_string()),
+            source: "typescript".to_string(),
             message: "Property 'name' does not exist on type 'User'.".to_string(),
             tags: None,
             related_information: None,

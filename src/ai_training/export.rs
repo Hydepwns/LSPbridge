@@ -384,7 +384,7 @@ impl TrainingExporter {
             // Limit context to max tokens
             let mut context_parts = Vec::with_capacity(5);
             for (file, code) in pair.context.surrounding_code.iter().take(5) {
-                context_parts.push(format!("File: {}\n{}", file, code));
+                context_parts.push(format!("File: {file}\n{code}"));
             }
             let context_str = context_parts.join("\n---\n");
 

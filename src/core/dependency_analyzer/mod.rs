@@ -9,7 +9,7 @@ pub use types::{
 };
 pub use analyzer::AnalysisEngine;
 
-use crate::core::semantic_context::{DependencyInfo, DependencyType};
+use crate::core::semantic_context::DependencyInfo;
 use crate::core::types::Diagnostic;
 use anyhow::Result;
 use std::path::Path;

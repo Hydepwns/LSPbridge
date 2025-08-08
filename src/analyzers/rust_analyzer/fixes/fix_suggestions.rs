@@ -3,6 +3,12 @@ use crate::core::{Diagnostic, SemanticContext};
 
 pub struct FixSuggestionGenerator;
 
+impl Default for FixSuggestionGenerator {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl FixSuggestionGenerator {
     pub fn new() -> Self {
         Self
@@ -11,7 +17,7 @@ impl FixSuggestionGenerator {
     pub fn suggest_fixes(
         &self,
         diagnostic: &Diagnostic,
-        context: Option<&SemanticContext>,
+        _context: Option<&SemanticContext>,
         analysis_category: DiagnosticCategory,
     ) -> Vec<FixSuggestion> {
         let mut suggestions = Vec::with_capacity(3); // Most diagnostics have 1-3 fix suggestions
@@ -133,7 +139,7 @@ impl FixSuggestionGenerator {
 
     fn suggest_lifetime_fixes(
         &self,
-        diagnostic: &Diagnostic,
+        _diagnostic: &Diagnostic,
         suggestions: &mut Vec<FixSuggestion>,
     ) {
         suggestions.push(FixSuggestion {

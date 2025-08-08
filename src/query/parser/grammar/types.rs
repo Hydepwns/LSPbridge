@@ -3,8 +3,6 @@
 use super::super::ast::*;
 use super::super::lexer::{Token, TokenType};
 use crate::core::errors::ParseError;
-use crate::core::DiagnosticSeverity;
-use chrono::{DateTime, Utc};
 
 /// Parser state for tracking position and context
 #[derive(Debug, Clone)]
@@ -144,6 +142,12 @@ pub struct ParsingContext {
     pub error_recovery_points: Vec<usize>,
 }
 
+impl Default for ParsingContext {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ParsingContext {
     /// Create a new parsing context
     pub fn new() -> Self {
@@ -248,13 +252,13 @@ impl GrammarValidator {
     }
 
     /// Validate select clause
-    fn validate_select_clause(select: &SelectClause) -> Result<(), ParseError> {
+    fn validate_select_clause(_select: &SelectClause) -> Result<(), ParseError> {
         // All select clauses are valid in our current grammar
         Ok(())
     }
 
     /// Validate from clause
-    fn validate_from_clause(from: &FromClause) -> Result<(), ParseError> {
+    fn validate_from_clause(_from: &FromClause) -> Result<(), ParseError> {
         // All from clauses are valid in our current grammar
         Ok(())
     }

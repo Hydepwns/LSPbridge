@@ -36,22 +36,22 @@ impl ValidationRules {
         // Memory limits
         rules.insert(
             "memory.max_memory_mb".to_string(),
-            Box::new(|v| v.parse::<usize>().map_or(false, |n| n >= 64 && n <= 16384)),
+            Box::new(|v| v.parse::<usize>().is_ok_and(|n| (64..=16384).contains(&n))),
         );
 
         rules.insert(
             "memory.max_entries".to_string(),
-            Box::new(|v| v.parse::<usize>().map_or(false, |n| n >= 100 && n <= 1_000_000)),
+            Box::new(|v| v.parse::<usize>().is_ok_and(|n| (100..=1_000_000).contains(&n))),
         );
 
         rules.insert(
             "memory.high_water_mark".to_string(),
-            Box::new(|v| v.parse::<f64>().map_or(false, |n| n >= 0.5 && n <= 0.95)),
+            Box::new(|v| v.parse::<f64>().is_ok_and(|n| (0.5..=0.95).contains(&n))),
         );
 
         rules.insert(
             "memory.low_water_mark".to_string(),
-            Box::new(|v| v.parse::<f64>().map_or(false, |n| n >= 0.1 && n <= 0.8)),
+            Box::new(|v| v.parse::<f64>().is_ok_and(|n| (0.1..=0.8).contains(&n))),
         );
 
         rules.insert(
@@ -62,23 +62,23 @@ impl ValidationRules {
         // Cache settings
         rules.insert(
             "cache.max_size_mb".to_string(),
-            Box::new(|v| v.parse::<usize>().map_or(false, |n| n >= 10 && n <= 10240)),
+            Box::new(|v| v.parse::<usize>().is_ok_and(|n| (10..=10240).contains(&n))),
         );
 
         rules.insert(
             "cache.max_entries".to_string(),
-            Box::new(|v| v.parse::<usize>().map_or(false, |n| n >= 100 && n <= 1_000_000)),
+            Box::new(|v| v.parse::<usize>().is_ok_and(|n| (100..=1_000_000).contains(&n))),
         );
 
         rules.insert(
             "cache.ttl_hours".to_string(),
-            Box::new(|v| v.parse::<u64>().map_or(false, |n| n >= 1 && n <= 8760)), // 1 hour to 1 year
+            Box::new(|v| v.parse::<u64>().is_ok_and(|n| (1..=8760).contains(&n))), // 1 hour to 1 year
         );
 
         // Performance limits
         rules.insert(
             "performance.max_cpu_usage_percent".to_string(),
-            Box::new(|v| v.parse::<f64>().map_or(false, |n| n >= 10.0 && n <= 100.0)),
+            Box::new(|v| v.parse::<f64>().is_ok_and(|n| (10.0..=100.0).contains(&n))),
         );
 
         rules.insert(
@@ -89,39 +89,39 @@ impl ValidationRules {
         // Processing limits
         rules.insert(
             "processing.chunk_size".to_string(),
-            Box::new(|v| v.parse::<usize>().map_or(false, |n| n >= 10 && n <= 10000)),
+            Box::new(|v| v.parse::<usize>().is_ok_and(|n| (10..=10000).contains(&n))),
         );
 
         rules.insert(
             "processing.max_concurrent_files".to_string(),
-            Box::new(|v| v.parse::<usize>().map_or(false, |n| n >= 1 && n <= 1000)),
+            Box::new(|v| v.parse::<usize>().is_ok_and(|n| (1..=1000).contains(&n))),
         );
 
         rules.insert(
             "processing.file_size_limit_mb".to_string(),
-            Box::new(|v| v.parse::<usize>().map_or(false, |n| n >= 1 && n <= 10240)),
+            Box::new(|v| v.parse::<usize>().is_ok_and(|n| (1..=10240).contains(&n))),
         );
 
         rules.insert(
             "processing.timeout_seconds".to_string(),
-            Box::new(|v| v.parse::<u64>().map_or(false, |n| n >= 1 && n <= 3600)),
+            Box::new(|v| v.parse::<u64>().is_ok_and(|n| (1..=3600).contains(&n))),
         );
 
         // Port validation
         rules.insert(
             "metrics.prometheus_port".to_string(),
-            Box::new(|v| v.parse::<u16>().map_or(false, |n| n >= 1024 && n <= 65535)),
+            Box::new(|v| v.parse::<u16>().is_ok_and(|n| (1024..=65535).contains(&n))),
         );
 
         // Metrics settings
         rules.insert(
             "metrics.collection_interval_seconds".to_string(),
-            Box::new(|v| v.parse::<u64>().map_or(false, |n| n >= 1 && n <= 3600)),
+            Box::new(|v| v.parse::<u64>().is_ok_and(|n| (1..=3600).contains(&n))),
         );
 
         rules.insert(
             "metrics.retention_hours".to_string(),
-            Box::new(|v| v.parse::<u64>().map_or(false, |n| n >= 1 && n <= 8760)),
+            Box::new(|v| v.parse::<u64>().is_ok_and(|n| (1..=8760).contains(&n))),
         );
 
         rules.insert(

@@ -70,13 +70,13 @@ impl ConfigIntegration {
     }
 
     /// Set configuration field value
-    pub async fn set_field_value(&self, field_path: &str, value: &str) -> Result<ConfigChange> {
+    pub async fn set_field_value(&self, _field_path: &str, _value: &str) -> Result<ConfigChange> {
         // Note: This would need to be implemented using update_config
         Err(anyhow::anyhow!("Field-level updates not directly supported"))
     }
 
     /// Get configuration field value
-    pub async fn get_field_value(&self, field_path: &str) -> Result<String> {
+    pub async fn get_field_value(&self, _field_path: &str) -> Result<String> {
         // Note: This would need to be implemented by inspecting the config struct
         Err(anyhow::anyhow!("Field-level access not directly supported"))
     }

@@ -187,15 +187,14 @@ impl CoreAnalyzer {
                 }
 
                 // Check for subprojects (package.json, Cargo.toml, etc. in subdirectories)
-                if path != root_path {
-                    if path.join("package.json").exists()
+                if path != root_path
+                    && (path.join("package.json").exists()
                         || path.join("Cargo.toml").exists()
                         || path.join("pyproject.toml").exists()
-                        || path.join("go.mod").exists()
+                        || path.join("go.mod").exists())
                     {
                         subprojects.push(path.clone());
                     }
-                }
 
                 entries.push(child_node);
             } else {

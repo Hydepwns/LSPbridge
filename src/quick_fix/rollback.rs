@@ -130,7 +130,7 @@ impl RollbackManager {
         }
 
         // Load from disk
-        let state_file = self.state_dir.join(format!("{}.json", session_id));
+        let state_file = self.state_dir.join(format!("{session_id}.json"));
         if !state_file.exists() {
             return Ok(None);
         }
@@ -185,7 +185,7 @@ impl RollbackManager {
 
         while let Some(entry) = entries.next_entry().await? {
             let path = entry.path();
-            if path.extension().map_or(false, |ext| ext == "json") {
+            if path.extension().is_some_and(|ext| ext == "json") {
                 if let Ok(json) = fs::read_to_string(&path).await {
                     if let Ok(state) = serde_json::from_str::<RollbackState>(&json) {
                         self.state_cache.insert(state.session_id.clone(), state);
@@ -215,7 +215,7 @@ impl RollbackManager {
         // Remove oldest states
         for (id, _) in states.iter().skip(self.max_states) {
             self.state_cache.remove(id);
-            let state_file = self.state_dir.join(format!("{}.json", id));
+            let state_file = self.state_dir.join(format!("{id}.json"));
             let _ = fs::remove_file(&state_file).await;
         }
 

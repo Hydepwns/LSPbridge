@@ -37,7 +37,7 @@ impl ConfigLoader for FileLoader {
 
         let config: DynamicConfig = toml::from_str(&content)
             .map_err(|e| ConfigError::ValidationFailed {
-                reason: format!("Failed to parse config file: {}", e),
+                reason: format!("Failed to parse config file: {e}"),
             })?;
 
         info!("Successfully loaded config from file: {}", self.file_path.display());
@@ -49,7 +49,7 @@ impl ConfigLoader for FileLoader {
         
         let content = toml::to_string_pretty(config)
             .map_err(|e| ConfigError::ValidationFailed {
-                reason: format!("Failed to serialize config: {}", e),
+                reason: format!("Failed to serialize config: {e}"),
             })?;
 
         // Ensure parent directory exists

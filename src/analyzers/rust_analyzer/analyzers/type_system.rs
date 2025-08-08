@@ -5,6 +5,12 @@ use regex::Regex;
 
 pub struct TypeSystemAnalyzer;
 
+impl Default for TypeSystemAnalyzer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TypeSystemAnalyzer {
     pub fn new() -> Self {
         Self

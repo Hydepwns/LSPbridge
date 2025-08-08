@@ -1,0 +1,36 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cargo test:*)",
+      "Bash(cargo build:*)",
+      "Bash(rg:*)",
+      "Bash(grep:*)",
+      "Bash(./test_runner.sh:*)",
+      "Bash(cargo clippy:*)",
+      "Bash(find:*)",
+      "Bash(cargo check:*)",
+      "Bash(rm:*)",
+      "Bash(git checkout:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(src/core/database_pool/manager.rs )",
+      "Bash(src/core/database_pool/monitoring.rs )",
+      "Bash(src/core/diagnostic_grouping.rs )",
+      "Bash(src/core/memory_manager/monitor.rs )",
+      "Bash(src/core/performance_optimizer.rs )",
+      "Bash(src/core/simple_enhanced_processor/mod.rs )",
+      "Bash(src/multi_repo/mod.rs )",
+      "Bash(src/project/mod.rs )",
+      "Bash(src/project/build_system/detectors/mod.rs )",
+      "Bash(src/query/api/mod.rs )",
+      "Bash(src/query/parser/errors.rs )",
+      "Bash(src/query/parser/grammar/parser.rs )",
+      "Bash(src/query/parser/grammar/utilities.rs )",
+      "Bash(src/query/repl.rs )",
+      "Bash(src/quick_fix/verification.rs )",
+      "Bash(src/core/config/unified.rs )",
+      "Bash(src/core/memory_manager/eviction.rs)"
+    ],
+    "deny": []
+  }
+}

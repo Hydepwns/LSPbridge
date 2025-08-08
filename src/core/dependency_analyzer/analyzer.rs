@@ -1,8 +1,7 @@
 use crate::core::semantic_context::{DependencyInfo, DependencyType};
 use crate::core::types::Diagnostic;
 use crate::core::dependency_analyzer::types::{
-    FileDependencies, DependencyGraph, Language, ImportDependency,
-    ExportInfo, TypeReference, ExternalFunctionCall
+    FileDependencies, DependencyGraph, Language, ImportDependency, TypeReference, ExternalFunctionCall
 };
 use crate::core::dependency_analyzer::cache::DependencyCache;
 use crate::core::dependency_analyzer::resolvers;
@@ -54,7 +53,7 @@ impl AnalysisEngine {
                 for import in &deps.imports {
                     reverse_dependencies
                         .entry(import.source_file.clone())
-                        .or_insert_with(HashSet::new)
+                        .or_default()
                         .insert(path.clone());
                 }
             }
@@ -82,9 +81,9 @@ impl AnalysisEngine {
             for import in &file_deps.imports {
                 dependencies.push(DependencyInfo {
                     file_path: import.source_file.to_string_lossy().to_string(),
+                    imported_symbols: import.imported_symbols.clone(),
+                    export_symbols: vec![],
                     dependency_type: DependencyType::Direct,
-                    symbols_used: import.imported_symbols.clone(),
-                    line_range: Some((import.line, import.line)),
                 });
             }
 
@@ -95,9 +94,9 @@ impl AnalysisEngine {
                         if let Some(source_file) = &type_ref.source_file {
                             dependencies.push(DependencyInfo {
                                 file_path: source_file.to_string_lossy().to_string(),
+                                imported_symbols: vec![type_ref.type_name.clone()],
+                                export_symbols: vec![],
                                 dependency_type: DependencyType::TypeOnly,
-                                symbols_used: vec![type_ref.type_name.clone()],
-                                line_range: Some((type_ref.line, type_ref.line)),
                             });
                         }
                     }
@@ -122,9 +121,9 @@ impl AnalysisEngine {
                         if imports_affected_symbols {
                             dependencies.push(DependencyInfo {
                                 file_path: dependent_file.to_string_lossy().to_string(),
+                                imported_symbols: used_symbols.clone(),
+                                export_symbols: vec![],
                                 dependency_type: DependencyType::Direct,
-                                symbols_used: used_symbols.clone(),
-                                line_range: None,
                             });
                         }
                     }

@@ -478,12 +478,12 @@ impl From<ParseError> for ConfigError {
             ParseError::Toml {
                 context, message, ..
             } => ConfigError::ValidationFailed {
-                reason: format!("TOML error in {}: {}", context, message),
+                reason: format!("TOML error in {context}: {message}"),
             },
             ParseError::Json {
                 context, message, ..
             } => ConfigError::ValidationFailed {
-                reason: format!("JSON error in {}: {}", context, message),
+                reason: format!("JSON error in {context}: {message}"),
             },
             _ => ConfigError::ValidationFailed {
                 reason: err.to_string(),
@@ -555,7 +555,7 @@ impl From<serde_json::Error> for DatabaseError {
         DatabaseError::Serialization {
             data_type: "JSON".to_string(),
             reason: err.to_string(),
-            source: bincode::ErrorKind::Custom(format!("JSON error: {}", err)).into(),
+            source: bincode::ErrorKind::Custom(format!("JSON error: {err}")).into(),
         }
     }
 }
@@ -565,7 +565,7 @@ impl From<std::io::Error> for DatabaseError {
         DatabaseError::Serialization {
             data_type: "IO".to_string(),
             reason: err.to_string(),
-            source: bincode::ErrorKind::Custom(format!("IO error: {}", err)).into(),
+            source: bincode::ErrorKind::Custom(format!("IO error: {err}")).into(),
         }
     }
 }
@@ -577,7 +577,7 @@ impl From<sled::Error> for CacheError {
                 details: err.to_string(),
             },
             sled::Error::ReportableBug(_) => CacheError::InitializationFailed {
-                reason: format!("Sled database bug: {}", err),
+                reason: format!("Sled database bug: {err}"),
             },
             _ => CacheError::SerializationFailed {
                 key: "unknown".to_string(),
@@ -650,7 +650,7 @@ impl ParseError {
 impl From<std::time::SystemTimeError> for DatabaseError {
     fn from(err: std::time::SystemTimeError) -> Self {
         DatabaseError::Transaction {
-            reason: format!("Time error: {}", err),
+            reason: format!("Time error: {err}"),
         }
     }
 }
