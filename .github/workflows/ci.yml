@@ -136,29 +136,141 @@ jobs:
       run: cargo audit
 
   benchmarks:
-    name: Benchmarks
+    name: Performance Benchmarks & Regression Detection
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.event_name == 'push' || github.event_name == 'pull_request'
+    
+    permissions:
+      contents: write
+      pull-requests: write
+      pages: write
+      id-token: write
     
     steps:
     - uses: actions/checkout@v4
       with:
         submodules: true
+        fetch-depth: 0  # Needed for git history
 
     - name: Install Rust
       uses: dtolnay/rust-toolchain@stable
-
-    - name: Run benchmarks
-      run: cargo bench --no-fail-fast | tee benchmark_results.txt
-
-    - name: Store benchmark result
-      uses: benchmark-action/github-action-benchmark@v1
       with:
-        tool: 'cargo'
-        output-file-path: benchmark_results.txt
-        github-token: ${{ secrets.GITHUB_TOKEN }}
-        auto-push: true
+        components: rustfmt, clippy
+
+    - name: Cache cargo registry
+      uses: actions/cache@v4
+      with:
+        path: ~/.cargo/registry
+        key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+
+    - name: Cache cargo build
+      uses: actions/cache@v4
+      with:
+        path: target
+        key: ${{ runner.os }}-cargo-build-bench-${{ hashFiles('**/Cargo.lock') }}
+
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y jq python3-pip
+        python3 -m pip install matplotlib seaborn pandas
+
+    - name: Download previous benchmark data
+      uses: actions/cache@v4
+      with:
+        path: benchmark-results
+        key: ${{ runner.os }}-benchmarks-${{ github.ref_name }}-${{ github.sha }}
+        restore-keys: |
+          ${{ runner.os }}-benchmarks-${{ github.ref_name }}-
+          ${{ runner.os }}-benchmarks-main-
+
+    - name: Run Benchmark Dashboard
+      env:
+        GITHUB_SHA: ${{ github.sha }}
+        GITHUB_REF_NAME: ${{ github.ref_name }}
+        CI: true
+      run: |
+        ./scripts/benchmark-dashboard.sh run
+
+    - name: Store benchmark results
+      uses: actions/cache@v4
+      with:
+        path: benchmark-results
+        key: ${{ runner.os }}-benchmarks-${{ github.ref_name }}-${{ github.sha }}
+
+    - name: Upload benchmark artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: benchmark-results-${{ github.sha }}
+        path: |
+          benchmark-results/latest/
+          benchmark-results/reports/
+        retention-days: 30
+
+    - name: Comment on PR with benchmark results
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const fs = require('fs');
+          const path = require('path');
+          
+          // Find the latest performance report
+          const reportsDir = 'benchmark-results/reports';
+          if (fs.existsSync(reportsDir)) {
+            const files = fs.readdirSync(reportsDir)
+              .filter(f => f.startsWith('performance_report_') && f.endsWith('.md'))
+              .sort()
+              .reverse();
+            
+            if (files.length > 0) {
+              const reportPath = path.join(reportsDir, files[0]);
+              const report = fs.readFileSync(reportPath, 'utf8');
+              
+              // Find existing comment or create new one
+              const { data: comments } = await github.rest.issues.listComments({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+              });
+              
+              const botComment = comments.find(comment => 
+                comment.user.type === 'Bot' && 
+                comment.body.includes('LSPbridge Performance Report')
+              );
+              
+              const body = `## 🚀 Benchmark Results\n\n${report}\n\n---\n*This comment will be updated with each push*`;
+              
+              if (botComment) {
+                await github.rest.issues.updateComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  comment_id: botComment.id,
+                  body: body
+                });
+              } else {
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: context.issue.number,
+                  body: body
+                });
+              }
+            }
+          }
+
+    - name: Generate benchmark visualization
+      run: |
+        python3 scripts/generate_benchmark_charts.py
       continue-on-error: true
+
+    - name: Deploy to GitHub Pages
+      if: github.ref == 'refs/heads/main'
+      uses: peaceiris/actions-gh-pages@v3
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        publish_dir: ./benchmark-results/reports
+        destination_dir: benchmarks
 
   check-licenses:
     name: License Check
