@@ -5,6 +5,9 @@ pub mod enhanced_processor_tests;
 pub mod git_integration_tests;
 pub mod health_dashboard_tests; // Fixed - methods now public
 pub mod migration_validation_tests;
+pub mod privacy_integration_tests;
+pub mod privacy_filter_integration_tests;
+pub mod quick_fix_verification_tests;
 // pub mod real_world_integration_tests; // Disabled - RepositoryRegistry API issues
 // pub mod semantic_context_tests; // Disabled - struct field mismatches
 // pub mod multi_repo_integration_tests; // Disabled - RepositoryRegistry API issues

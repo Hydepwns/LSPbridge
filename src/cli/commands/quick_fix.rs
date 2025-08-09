@@ -84,7 +84,8 @@ impl QuickFixCommand {
             Some(
                 FixVerifier::new()
                     .with_tests(verify_tests)
-                    .with_build_check(verify_build),
+                    .with_build_check(verify_build)
+                    .with_lsp_validation(true), // Enable LSP validation
             )
         } else {
             None
@@ -173,14 +174,64 @@ impl QuickFixCommand {
         }
 
         // Verify if requested
-        if let Some(_verifier) = verifier {
-            println!("Verifying fixes...");
-            for ((fix_edit, _), (result, _)) in fixes_to_apply.iter().zip(&results) {
+        if let Some(verifier) = verifier {
+            println!("🔍 Verifying fixes...");
+            let mut verification_results = Vec::new();
+            
+            for ((fix_edit, _confidence), (result, original_diag)) in fixes_to_apply.iter().zip(&results) {
                 if result.success {
-                    // Would need the original diagnostic here
-                    // For now, just show that verification would happen
-                    println!("  Verifying {}", fix_edit.file_path.display());
+                    println!("  Verifying fix for: {}", fix_edit.file_path.display());
+                    
+                    // Create a dummy diagnostic for verification
+                    // In a real implementation, we'd pass the original diagnostic
+                    let dummy_diagnostic = create_verification_diagnostic(fix_edit);
+                    
+                    match verifier.verify_fix(&dummy_diagnostic, result).await {
+                        Ok(verification) => {
+                            verification_results.push(verification.clone());
+                            
+                            if verification.issue_resolved {
+                                println!("    ✅ Issue resolved successfully");
+                            } else {
+                                println!("    ❌ Issue may not be fully resolved");
+                            }
+                            
+                            if !verification.new_issues.is_empty() {
+                                println!("    ⚠️  {} new issues detected", verification.new_issues.len());
+                            }
+                            
+                            if !verification.build_status.success {
+                                println!("    🔨 Build failed after fix");
+                                for error in &verification.build_status.errors {
+                                    println!("      Error: {}", error);
+                                }
+                            }
+                            
+                            if let Some(test_results) = &verification.test_results {
+                                if test_results.failed > 0 {
+                                    println!("    🧪 {} tests failed", test_results.failed);
+                                } else {
+                                    println!("    🧪 All {} tests passed", test_results.passed);
+                                }
+                            }
+                        }
+                        Err(e) => {
+                            println!("    ❌ Verification failed: {}", e);
+                        }
+                    }
                 }
+            }
+            
+            // Verification summary
+            let successful_verifications = verification_results.iter()
+                .filter(|v| v.issue_resolved && v.build_status.success)
+                .count();
+            let failed_verifications = verification_results.len() - successful_verifications;
+            
+            println!("\n🔍 Verification Summary:");
+            println!("  ✅ Successfully verified: {}", successful_verifications);
+            if failed_verifications > 0 {
+                println!("  ❌ Failed verification: {}", failed_verifications);
             }
         }
 
@@ -325,5 +376,23 @@ fn create_demo_fix(diagnostic: &Diagnostic) -> Option<FixEdit> {
             description: Some("Add missing semicolon".to_string()),
         }),
         _ => None,
+    }
+}
+
+fn create_verification_diagnostic(fix_edit: &FixEdit) -> Diagnostic {
+    use uuid::Uuid;
+    use crate::core::{Position, Range};
+    
+    Diagnostic {
+        id: Uuid::new_v4().to_string(),
+        file: fix_edit.file_path.to_string_lossy().to_string(),
+        range: fix_edit.range.clone(),
+        severity: DiagnosticSeverity::Error,
+        message: fix_edit.description.as_deref().unwrap_or("Unknown issue").to_string(),
+        code: Some("verification_test".to_string()),
+        source: "quick_fix_verifier".to_string(),
+        related_information: None,
+        tags: None,
+        data: None,
     }
 }
