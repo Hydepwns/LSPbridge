@@ -44,6 +44,9 @@ pub struct UnifiedConfig {
 
     /// Security configuration with secure defaults
     pub security: super::super::security_config::SecurityConfig,
+
+    /// Privacy policy configuration for diagnostic filtering
+    pub privacy: crate::core::PrivacyPolicy,
 }
 
 /// Error recovery configuration
@@ -133,6 +136,7 @@ impl Default for UnifiedConfig {
             metrics: MetricsConfig::default(),
             features: FeatureFlags::default(),
             security: security.clone(),
+            privacy: crate::core::PrivacyPolicy::default(),
         };
         
         // Apply security config to ensure secure defaults
@@ -168,6 +172,7 @@ impl UnifiedConfig {
                 experimental_features: false, // Never enable in production
             },
             security: security.clone(),
+            privacy: crate::core::PrivacyPolicy::strict(),
         };
         
         // Apply strict security constraints
@@ -213,6 +218,7 @@ impl UnifiedConfig {
                 experimental_features: true,  // Allow experimental features
             },
             security: security.clone(),
+            privacy: crate::core::PrivacyPolicy::permissive(),
             ..Self::default()
         };
         
@@ -266,6 +272,7 @@ impl UnifiedConfig {
                 ..MetricsConfig::default()
             },
             security,
+            privacy: crate::core::PrivacyPolicy::default(),
             ..Self::default()
         }
     }
@@ -364,6 +371,17 @@ impl UnifiedConfig {
             anyhow::bail!("Git scan interval too frequent: minimum 10 seconds to prevent resource exhaustion");
         }
 
+        // Privacy policy validation
+        if self.privacy.max_diagnostics_per_file > 1000 {
+            anyhow::bail!("Max diagnostics per file cannot exceed 1000 (DoS protection)");
+        }
+
+        for pattern in &self.privacy.exclude_patterns {
+            if pattern.len() > 256 {
+                anyhow::bail!("Exclude pattern too long: maximum 256 characters");
+            }
+        }
+
         Ok(())
     }
 }
@@ -405,6 +423,22 @@ impl super::traits::HasMultiRepoConfig for UnifiedConfig {
     }
 }
 
+/// Trait for configuration types that include privacy policy
+pub trait HasPrivacyConfig {
+    fn privacy_config(&self) -> &crate::core::PrivacyPolicy;
+    fn privacy_config_mut(&mut self) -> &mut crate::core::PrivacyPolicy;
+}
+
+impl HasPrivacyConfig for UnifiedConfig {
+    fn privacy_config(&self) -> &crate::core::PrivacyPolicy {
+        &self.privacy
+    }
+
+    fn privacy_config_mut(&mut self) -> &mut crate::core::PrivacyPolicy {
+        &mut self.privacy
+    }
+}
+
 /// Migration utilities for backward compatibility with existing config types
 impl UnifiedConfig {
     /// Convert from the existing DynamicConfig for migration
@@ -442,6 +476,7 @@ impl UnifiedConfig {
                 experimental_features: dynamic.features.enable_experimental_features,
             },
             security: SecurityConfig::default(), // Not in dynamic config
+            privacy: crate::core::PrivacyPolicy::default(), // Not in dynamic config
         }
     }
 

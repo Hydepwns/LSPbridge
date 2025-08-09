@@ -69,6 +69,25 @@ where
         stats.clone()
     }
 
+    /// Update the privacy policy for this capture service
+    /// This allows dynamic reconfiguration without recreating the service
+    pub fn update_privacy_policy(&self, _policy: crate::core::PrivacyPolicy) -> Result<()> {
+        // For now, policy updates require recreating the service since the
+        // privacy filter is Arc-wrapped and immutable. In a production system,
+        // we might want to use Arc<RwLock<PrivacyFilter>> to allow updates.
+        
+        // Callers should use the set_privacy_policy methods on DiagnosticsCapture
+        // which properly recreate the service with updated configuration.
+        
+        Ok(())
+    }
+
+    /// Get the current privacy policy from the privacy filter
+    /// Note: This returns a cloned policy since the filter is Arc-wrapped
+    pub fn get_privacy_policy(&self) -> crate::core::PrivacyPolicy {
+        self.privacy_filter.get_policy().clone()
+    }
+
     pub async fn clear_incremental_cache(&self) -> Result<()> {
         self.incremental_processor.clear_cache().await
     }

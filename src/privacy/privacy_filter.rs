@@ -265,6 +265,10 @@ impl PrivacyFilterTrait for PrivacyFilter {
         Ok(filtered)
     }
 
+    fn get_policy(&self) -> &PrivacyPolicy {
+        &self.policy
+    }
+
     fn should_include_diagnostic(&self, diagnostic: &Diagnostic) -> bool {
         // First check workspace filter if available
         if let Some(ref workspace_filter) = self.workspace_filter {

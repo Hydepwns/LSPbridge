@@ -44,9 +44,53 @@ impl DiagnosticsCapture {
     }
     
     /// Set privacy policy for filtering diagnostics
-    pub fn set_privacy_policy(&mut self, _policy: PrivacyPolicy) {
-        // TODO: Apply privacy policy to the service
-        // This will be implemented when privacy policies are fully integrated
+    pub fn set_privacy_policy(&mut self, policy: PrivacyPolicy) {
+        // Update the privacy filter with the new policy
+        let privacy_filter = PrivacyFilter::new(policy);
+        
+        // Create new service with updated privacy filter
+        let cache = MemoryCache::new(100, 3600);
+        let format_converter = FormatConverter::new();
+        
+        self.service = CaptureService::new(cache, privacy_filter, format_converter);
+    }
+    
+    /// Set privacy policy with workspace filtering
+    pub fn set_privacy_policy_with_workspace(&mut self, policy: PrivacyPolicy, workspace_root: std::path::PathBuf) {
+        // Create privacy filter with workspace filtering
+        let privacy_filter = PrivacyFilter::new(policy).with_workspace(workspace_root);
+        
+        // Create new service with updated privacy filter
+        let cache = MemoryCache::new(100, 3600);
+        let format_converter = FormatConverter::new();
+        
+        self.service = CaptureService::new(cache, privacy_filter, format_converter);
+    }
+    
+    /// Get the current privacy policy
+    pub fn get_privacy_policy(&self) -> PrivacyPolicy {
+        self.service.get_privacy_policy()
+    }
+    
+    /// Create a new DiagnosticsCapture with specific privacy policy
+    pub fn with_privacy_policy(policy: PrivacyPolicy) -> Self {
+        let cache = MemoryCache::new(100, 3600);
+        let privacy_filter = PrivacyFilter::new(policy);
+        let format_converter = FormatConverter::new();
+        
+        Self {
+            service: CaptureService::new(cache, privacy_filter, format_converter),
+        }
+    }
+    
+    /// Create a new DiagnosticsCapture with strict privacy policy
+    pub fn with_strict_privacy() -> Self {
+        Self::with_privacy_policy(PrivacyPolicy::strict())
+    }
+    
+    /// Create a new DiagnosticsCapture with permissive privacy policy  
+    pub fn with_permissive_privacy() -> Self {
+        Self::with_privacy_policy(PrivacyPolicy::permissive())
     }
     
     /// Start capturing diagnostics

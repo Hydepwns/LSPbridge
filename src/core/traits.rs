@@ -68,6 +68,9 @@ pub trait PrivacyFilter {
 
     /// Sanitize a single diagnostic
     fn sanitize_diagnostic(&self, diagnostic: Diagnostic) -> Diagnostic;
+
+    /// Get the current privacy policy
+    fn get_policy(&self) -> &PrivacyPolicy;
 }
 
 /// Trait for format conversion
