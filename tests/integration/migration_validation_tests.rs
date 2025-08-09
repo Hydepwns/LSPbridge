@@ -100,8 +100,10 @@ async fn test_unified_config_system() -> Result<(), Box<dyn std::error::Error>> 
     assert_eq!(unified_config.performance.max_concurrent_files, 4);
 
     // Test that unified config works with enhanced processor
+    // Use unique cache directory to avoid database lock conflicts
+    let unique_cache_dir = tempfile::TempDir::new()?.path().join("unified_config_cache");
     let processor_config = SimpleEnhancedConfig {
-        cache_dir: unified_config.cache.cache_dir.clone(),
+        cache_dir: unique_cache_dir,
         ..Default::default()
     };
 
@@ -185,8 +187,13 @@ async fn test_no_breaking_changes() -> Result<(), Box<dyn std::error::Error>> {
     let diagnostic = create_test_diagnostic(&file_path, 0, 0, "Test error");
     let _context = extractor.extract_context_from_file(&diagnostic)?;
 
-    // 2. EnhancedIncrementalProcessor should work with default config
-    let _processor = SimpleEnhancedProcessor::new(SimpleEnhancedConfig::default()).await?;
+    // 2. EnhancedIncrementalProcessor should work with unique cache config to avoid locks
+    let unique_cache_dir = temp_dir.path().join("no_breaking_changes_cache");
+    let config = SimpleEnhancedConfig {
+        cache_dir: unique_cache_dir,
+        ..SimpleEnhancedConfig::default()
+    };
+    let _processor = SimpleEnhancedProcessor::new(config).await?;
 
     // 3. Error types should be compatible
     let _error: LSPBridgeError =
@@ -259,7 +266,12 @@ async fn validate_enhanced_processor_api() -> ValidationResult {
     let start_memory = get_memory_usage();
 
     let result = async {
-        let config = SimpleEnhancedConfig::default();
+        // Use unique cache directory to avoid database lock conflicts
+        let unique_cache_dir = tempfile::TempDir::new()?.path().join("enhanced_processor_api_cache");
+        let config = SimpleEnhancedConfig {
+            cache_dir: unique_cache_dir,
+            ..SimpleEnhancedConfig::default()
+        };
         let processor = SimpleEnhancedProcessor::new(config).await?;
 
         let temp_dir = TempDir::new()?;
@@ -409,7 +421,12 @@ async fn validate_memory_usage_targets() -> ValidationResult {
 
     let result = async {
         // Target: 30% reduction in steady-state memory usage
-        let config = SimpleEnhancedConfig::default();
+        // Use unique cache directory to avoid database lock conflicts
+        let unique_cache_dir = tempfile::TempDir::new()?.path().join("memory_usage_cache");
+        let config = SimpleEnhancedConfig {
+            cache_dir: unique_cache_dir,
+            ..SimpleEnhancedConfig::default()
+        };
         let processor = SimpleEnhancedProcessor::new(config).await?;
 
         let temp_dir = TempDir::new()?;
@@ -546,7 +563,12 @@ async fn validate_cold_start_targets() -> ValidationResult {
         let init_start = Instant::now();
 
         let _extractor = ContextExtractor::new()?;
-        let config = SimpleEnhancedConfig::default();
+        // Use unique cache directory to avoid database lock conflicts
+        let unique_cache_dir = tempfile::TempDir::new()?.path().join("cold_start_cache");
+        let config = SimpleEnhancedConfig {
+            cache_dir: unique_cache_dir,
+            ..SimpleEnhancedConfig::default()
+        };
         let _processor = SimpleEnhancedProcessor::new(config).await?;
 
         let init_time = init_start.elapsed();
